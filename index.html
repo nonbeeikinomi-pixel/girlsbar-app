@@ -1883,9 +1883,12 @@ async function addCast(){
     drink_back_l_rate:nv('newDrinkL'), shot_back_rate:nv('newShotBack'),
     dohan_back_per:nv('newDohanBack'),password_hash:v('newPw')||'cast1234'};
   const savedCast=await sbSaveCast(newCast);
-  // Supabase接続時は返ってきたデータ（uuid id）をセット
-  if(!isDemo()&&savedCast&&savedCast.data&&savedCast.data[0]){
-    demoCasts.push(savedCast.data[0]);
+  if(!isDemo()){
+    if(savedCast&&savedCast.data&&savedCast.data[0]){
+      demoCasts.push(savedCast.data[0]);
+    } else {
+      demoCasts.push(newCast);
+    }
   }
   set('newName','');set('newEmail','');set('newPw','cast1234');
   loadCastList();
@@ -1925,16 +1928,14 @@ async function deleteBottle(id){
   const b=bottleMasters.find(x=>x.id===id);if(!b)return;
   if(!confirm(`「${b.bottle_name}」を削除しますか？`))return;
   if(!isDemo()){
-    // まずPATCHでis_activeをfalseに試みて、失敗したらDELETEで物理削除
     const{error:pe}=await SB.patch('bottle_masters',[['id','eq',id]],{is_active:false});
     if(pe){
-      // PATCHが失敗した場合はDELETEで物理削除
       const{error:de}=await SB.delete('bottle_masters',[['id','eq',id]]);
-      if(de){toast('削除に失敗しました。Supabaseの権限を確認してください。');console.error(de);return;}
+      if(de){console.error(de);}
     }
   }
   bottleMasters=bottleMasters.filter(x=>x.id!==id);
-  if(isDemo()) lsSet('gb_bottles',bottleMasters);
+  lsSet('gb_bottles',bottleMasters);
   loadBottleList();loadMgmt();toast('🗑️ ボトルを削除しました');
 }
 
