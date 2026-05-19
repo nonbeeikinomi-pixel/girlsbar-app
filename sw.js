@@ -1,4 +1,4 @@
-const CACHE_NAME = 'girlsbar-v1';
+const CACHE_NAME = 'girlsbar-v4';
 const ASSETS = [
   './',
   './index.html',
