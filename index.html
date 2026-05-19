@@ -2085,7 +2085,7 @@ function castToSBPayload(cast){
   const keys=['name','email','role','is_active','member_type',
     'hourly_wage_before_20','hourly_wage_before_22','hourly_wage_after_22',
     'drink_back_s','drink_back_m','drink_back_l','shot_back',
-    'back_rate','dohan_back_per'];
+    'back_rate','dohan_back_per','password_hash'];
   const p={};
   keys.forEach(function(k){if(cast[k]!==undefined)p[k]=cast[k];});
   return p;
