@@ -2080,6 +2080,16 @@ async function loadAllCasts(){
   const{data}=await SB.get('casts',{filters:[['is_active','eq',true],['role','eq','cast']],order:'created_at.asc'});
   if(data&&data.length) demoCasts=data;
 }
+function castToSBPayload(cast){
+  // Supabaseのcastsテーブルに存在するカラムのみ送信
+  const keys=['name','email','role','is_active','member_type',
+    'hourly_wage_before_20','hourly_wage_before_22','hourly_wage_after_22',
+    'drink_back_s','drink_back_m','drink_back_l','shot_back',
+    'back_rate','dohan_back_per'];
+  const p={};
+  keys.forEach(function(k){if(cast[k]!==undefined)p[k]=cast[k];});
+  return p;
+}
 async function sbSaveCast(cast){
   if(isDemo()){
     demoCasts=demoCasts.filter(c=>c.id!==cast.id);
@@ -2087,13 +2097,12 @@ async function sbSaveCast(cast){
     lsSet('gb_casts',demoCasts);
     return {data:[cast]};
   }
-  // password_hash はSupabaseに送らない（ローカル認証専用）
-  const{id,password_hash:_pw,...payload}=cast;
-  const isNew=!id||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+  const isNew=!cast.id||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cast.id);
+  const payload=castToSBPayload(cast);
   if(isNew){
     return await SB.post('casts',payload);
   }
-  return await SB.upsert('casts',{id,...payload},'id');
+  return await SB.upsert('casts',{id:cast.id,...payload},'id');
 }
 async function sbDeleteCast(id){
   if(isDemo()){demoCasts=demoCasts.filter(c=>c.id!==id);return;}
