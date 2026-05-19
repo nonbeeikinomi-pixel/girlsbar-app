@@ -1936,6 +1936,11 @@ async function addCast(){
     dohan_back_per:nv('newDohanBack'),password_hash:v('newPw')||'cast1234'};
   const savedCast=await sbSaveCast(newCast);
   if(!isDemo()){
+    if(savedCast&&savedCast.error){
+      console.error('キャスト追加エラー:',savedCast.error);
+      toast('❌ 追加失敗: '+(savedCast.error.message||savedCast.error.hint||JSON.stringify(savedCast.error)));
+      return;
+    }
     if(savedCast&&savedCast.data&&savedCast.data[0]){
       demoCasts.push(savedCast.data[0]);
     } else {
@@ -2081,6 +2086,11 @@ async function sbSaveCast(cast){
     demoCasts.push(cast);
     lsSet('gb_casts',demoCasts);
     return {data:[cast]};
+  }
+  const isNew=!cast.id||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cast.id);
+  if(isNew){
+    const{id:_,...payload}=cast;
+    return await SB.post('casts',payload);
   }
   return await SB.upsert('casts',cast,'id');
 }
