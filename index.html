@@ -1937,19 +1937,18 @@ async function addCast(){
   const savedCast=await sbSaveCast(newCast);
   if(!isDemo()){
     if(savedCast&&savedCast.error){
+      const msg=savedCast.error.message||savedCast.error.hint||savedCast.error.details||JSON.stringify(savedCast.error);
       console.error('キャスト追加エラー:',savedCast.error);
-      toast('❌ 追加失敗: '+(savedCast.error.message||savedCast.error.hint||JSON.stringify(savedCast.error)));
+      toast('❌ 追加失敗: '+msg);
       return;
     }
-    if(savedCast&&savedCast.data&&savedCast.data[0]){
-      demoCasts.push(savedCast.data[0]);
-    } else {
-      demoCasts.push(newCast);
-    }
+    // Supabaseから再取得して確実に同期
+    await loadAllCasts();
+  } else {
+    demoCasts.push(newCast);
   }
   set('newName','');set('newEmail','');set('newPw','cast1234');
   loadCastList();
-  // 日報選択欄のキャスト一覧も更新
   loadAdminTop();
   toast('✅ キャストを追加しました');
 }
@@ -2087,12 +2086,13 @@ async function sbSaveCast(cast){
     lsSet('gb_casts',demoCasts);
     return {data:[cast]};
   }
-  const isNew=!cast.id||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cast.id);
+  // password_hash はSupabaseに送らない（ローカル認証専用）
+  const{id,password_hash:_pw,...payload}=cast;
+  const isNew=!id||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
   if(isNew){
-    const{id:_,...payload}=cast;
     return await SB.post('casts',payload);
   }
-  return await SB.upsert('casts',cast,'id');
+  return await SB.upsert('casts',{id,...payload},'id');
 }
 async function sbDeleteCast(id){
   if(isDemo()){demoCasts=demoCasts.filter(c=>c.id!==id);return;}
