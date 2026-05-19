@@ -4404,12 +4404,37 @@ function loadIdentityVerification(){
       +'<div><div class="label">生年月日</div><div>'+(iv.birth_date||'未記入')+'</div></div>'
       +'<div><div class="label">電話番号</div><div>'+(iv.phone||'未記入')+'</div></div>'
       +'<div><div class="label">住所</div><div>'+(iv.address||'未記入')+'</div></div>'
-      +'</div></div>'
-      +'<div style="display:flex;gap:8px;">'
+      +'</div>'
+      +(iv.id_image_front||iv.id_image_back?
+        '<div style="margin-top:12px;"><div style="font-size:13px;font-weight:800;color:var(--pink);margin-bottom:8px;">🪪 身分証明書</div>'
+        +'<div style="display:flex;gap:10px;flex-wrap:wrap;">'
+        +(iv.id_image_front?'<div><div class="label" style="margin-bottom:4px;">表面</div><img src="'+iv.id_image_front+'" style="max-width:220px;border-radius:8px;border:1px solid var(--border);cursor:pointer;" onclick="showIdImageFullscreen(\''+castId+'\',\'front\')"></div>':'')
+        +(iv.id_image_back?'<div><div class="label" style="margin-bottom:4px;">裏面</div><img src="'+iv.id_image_back+'" style="max-width:220px;border-radius:8px;border:1px solid var(--border);cursor:pointer;" onclick="showIdImageFullscreen(\''+castId+'\',\'back\')"></div>':'')
+        +'</div></div>'
+        :'<div style="margin-top:8px;font-size:12px;color:var(--muted);">身分証画像：未提出</div>')
+      +'</div>'
+      +'<div style="display:flex;gap:8px;margin-top:12px;">'
       +_btn('btn primary full',castId,'approveIdentity','承認')
       +_btn('btn danger full',castId,'rejectIdentity','差し戻し')+'</div>'
       :'<p class="note" style="text-align:center;padding:16px;">まだ提出されていません</p>')
     +'</div>';
+}
+function showIdImageFullscreen(castId,side){
+  const iv=identityVerifications[castId]||{};
+  const src=side==='front'?iv.id_image_front:iv.id_image_back;
+  if(!src){toast('画像がありません');return;}
+  const label=side==='front'?'身分証（表面）':'身分証（裏面）';
+  let m=document.getElementById('idImgModal');if(m)m.remove();
+  m=document.createElement('div');m.id='idImgModal';
+  m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;';
+  m.innerHTML='<div style="width:100%;max-width:680px;">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">'
+    +'<div style="color:#fff;font-weight:700;">'+label+'</div>'
+    +'<button class="btn outline small" style="color:#fff;border-color:#fff;" onclick="document.getElementById(\'idImgModal\').remove()">✕ 閉じる</button></div>'
+    +'<img src="'+src+'" style="width:100%;border-radius:10px;max-height:80vh;object-fit:contain;">'
+    +'</div>';
+  m.addEventListener('click',function(e){if(e.target===m)m.remove();});
+  document.body.appendChild(m);
 }
 function processTermination(){
   const castId=v('ctTermCast');if(!castId){toast('キャストを選択してください');return;}
@@ -4453,6 +4478,25 @@ function loadMyContract(){
         +'</div>';
     }).join('');
 }
+function fileToBase64(file){
+  return new Promise(function(resolve,reject){
+    if(!file){resolve('');return;}
+    if(file.size>5*1024*1024){reject(new Error('ファイルサイズは5MB以下にしてください'));return;}
+    var reader=new FileReader();
+    reader.onload=function(e){resolve(e.target.result);};
+    reader.onerror=reject;
+    reader.readAsDataURL(file);
+  });
+}
+function ivPreviewImg(inputId,previewId){
+  var file=document.getElementById(inputId).files[0];
+  if(!file)return;
+  if(file.size>5*1024*1024){toast('❌ ファイルサイズは5MB以下にしてください');return;}
+  fileToBase64(file).then(function(b64){
+    var p=document.getElementById(previewId);
+    if(p){p.src=b64;p.style.display='block';}
+  });
+}
 function openIdentityForm(){
   const castId=currentUser?currentUser.id:null;if(!castId)return;
   const iv=identityVerifications[castId]||{};
@@ -4473,15 +4517,44 @@ function openIdentityForm(){
     +'<div class="fg"><label class="label">緊急連絡先 氏名</label><input id="iv_ec_name" class="inp" value="'+(iv.emergency_contact_name||'')+'"></div>'
     +'<div class="fg"><label class="label">続柄</label><input id="iv_ec_rel" class="inp" value="'+(iv.emergency_contact_relation||'')+'"></div>'
     +'<div class="fg"><label class="label">電話番号</label><input id="iv_ec_phone" class="inp" value="'+(iv.emergency_contact_phone||'')+'"></div></div>'
-  +_btn('btn primary full',castId,'submitIdentityVerification','提出する')+'</div>';
+    +'<div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">'
+    +'<div style="font-size:13px;font-weight:800;color:var(--pink);margin-bottom:10px;">🪪 身分証明書（写真付き）</div>'
+    +'<div style="font-size:12px;color:var(--muted);margin-bottom:12px;">運転免許証・マイナンバーカード・パスポートなど。JPG/PNG/PDF・5MB以下</div>'
+    +'<div class="grid2">'
+    +'<div class="fg"><label class="label">身分証 表面</label>'
+    +'<label style="display:flex;flex-direction:column;align-items:center;gap:8px;border:2px dashed var(--border);border-radius:10px;padding:14px;cursor:pointer;background:var(--pink2);">'
+    +'<span style="font-size:24px;">📷</span><span style="font-size:12px;color:var(--muted);">タップして選択</span>'
+    +'<input type="file" id="iv_id_front" accept="image/*,application/pdf" style="display:none" onchange="ivPreviewImg(\'iv_id_front\',\'iv_front_preview\')">'
+    +'</label>'
+    +(iv.id_image_front?'<img id="iv_front_preview" src="'+iv.id_image_front+'" style="width:100%;border-radius:8px;margin-top:6px;border:1px solid var(--border);">':'<img id="iv_front_preview" style="display:none;width:100%;border-radius:8px;margin-top:6px;border:1px solid var(--border);">')
+    +'</div>'
+    +'<div class="fg"><label class="label">身分証 裏面（任意）</label>'
+    +'<label style="display:flex;flex-direction:column;align-items:center;gap:8px;border:2px dashed var(--border);border-radius:10px;padding:14px;cursor:pointer;background:var(--pink2);">'
+    +'<span style="font-size:24px;">📷</span><span style="font-size:12px;color:var(--muted);">タップして選択</span>'
+    +'<input type="file" id="iv_id_back" accept="image/*,application/pdf" style="display:none" onchange="ivPreviewImg(\'iv_id_back\',\'iv_back_preview\')">'
+    +'</label>'
+    +(iv.id_image_back?'<img id="iv_back_preview" src="'+iv.id_image_back+'" style="width:100%;border-radius:8px;margin-top:6px;border:1px solid var(--border);">':'<img id="iv_back_preview" style="display:none;width:100%;border-radius:8px;margin-top:6px;border:1px solid var(--border);">')
+    +'</div></div></div>'
+    +'<div style="margin-top:14px;">'
+    +_btn('btn primary full',castId,'submitIdentityVerification','提出する')+'</div></div>';
   document.body.appendChild(m);
 }
-function submitIdentityVerification(castId){
+async function submitIdentityVerification(castId){
   const name=v('iv_name').trim();if(!name){toast('氏名を入力してください');return;}
+  const frontFile=document.getElementById('iv_id_front').files[0];
+  const backFile=document.getElementById('iv_id_back').files[0];
+  let frontB64=identityVerifications[castId]&&identityVerifications[castId].id_image_front||'';
+  let backB64=identityVerifications[castId]&&identityVerifications[castId].id_image_back||'';
+  try{
+    if(frontFile)frontB64=await fileToBase64(frontFile);
+    if(backFile)backB64=await fileToBase64(backFile);
+  }catch(e){toast('❌ '+e.message);return;}
   identityVerifications[castId]={cast_id:castId,legal_name:name,kana:v('iv_kana'),
     birth_date:v('iv_birth'),phone:v('iv_phone'),address:v('iv_address'),
     emergency_contact_name:v('iv_ec_name'),emergency_contact_relation:v('iv_ec_rel'),
-    emergency_contact_phone:v('iv_ec_phone'),status:'pending',updated_at:new Date().toISOString()};
+    emergency_contact_phone:v('iv_ec_phone'),
+    id_image_front:frontB64,id_image_back:backB64,
+    status:'pending',updated_at:new Date().toISOString()};
   saveContractData();document.getElementById('identityModal').remove();
   loadMyContract();toast('✅ 本人情報を提出しました');
 }
