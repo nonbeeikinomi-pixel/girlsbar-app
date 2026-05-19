@@ -1937,9 +1937,10 @@ async function addCast(){
   const savedCast=await sbSaveCast(newCast);
   if(!isDemo()){
     if(savedCast&&savedCast.error){
-      const msg=savedCast.error.message||savedCast.error.hint||savedCast.error.details||JSON.stringify(savedCast.error);
-      console.error('キャスト追加エラー:',savedCast.error);
-      toast('❌ 追加失敗: '+msg);
+      const err=savedCast.error;
+      const msg=(err.message||'')+(err.hint?' / ヒント:'+err.hint:'')+(err.details?' / 詳細:'+err.details:'');
+      console.error('キャスト追加エラー:',err);
+      alert('❌ キャスト追加失敗\n\n'+msg+'\n\n（開発者にこのメッセージをお伝えください）');
       return;
     }
     // Supabaseから再取得して確実に同期
