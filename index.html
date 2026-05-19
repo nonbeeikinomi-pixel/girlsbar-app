@@ -3978,6 +3978,7 @@ let contractSignatures=[];
 let identityVerifications={};
 let castContractStatuses={};
 let castRewardTerms={};
+let castContractBodies={};
 let drinkBackTiers=[
   {id:'t1',min_count:0,  max_count:49,  back_rate:10,is_active:true},
   {id:'t2',min_count:50, max_count:99,  back_rate:15,is_active:true},
@@ -3990,7 +3991,8 @@ let drinkBackSettings={include_shots:true};
 function saveContractData(){
   lsSet('gb_contracts',{templates:contractTemplates,signatures:contractSignatures,
     identityVerifications:identityVerifications,castContractStatuses:castContractStatuses,
-    castRewardTerms:castRewardTerms,drinkBackTiers:drinkBackTiers,drinkBackSettings:drinkBackSettings});
+    castRewardTerms:castRewardTerms,castContractBodies:castContractBodies,
+    drinkBackTiers:drinkBackTiers,drinkBackSettings:drinkBackSettings});
 }
 const BUSINESS_TPL_BODY='業務委託契約書\n\n株式会社NONBEE（以下「甲」という。）と {{cast_name}}（以下「乙」という。）は、以下の通り業務委託契約（以下「本契約」という。）を締結する。\n\n第１条（業務内容）\n甲は乙に対し、甲が経営するガールズバーにおける接客業務（以下「本業務」という。）を委託し、乙はこれを受託する。\n\n第２条（報酬）\n１．甲は乙に対し、本業務の対価として、下記の報酬を支払うものとする。\n　①基本時給：20時前 {{hourly_wage_before_20}}円 / 22時前 {{hourly_wage_before_22}}円 / 22時以降 {{hourly_wage_after_22}}円\n　②ドリンクバック：{{drink_back_rate}}\n２．報酬の支払いは、毎月末日締め翌月10日払いとする。\n\n第３条（業務遂行）\n乙は、自己の裁量と責任において本業務を遂行するものとし、甲の指揮命令下には入らない。乙は個人事業主として本業務に従事する。\n\n第４条（経費）\n本業務に要する経費は、別途書面にて合意した場合を除き、乙の負担とする。\n\n第５条（禁止事項）\n乙は以下の行為を行ってはならない。\n①甲の許可なく店内の情報・顧客情報を第三者に開示すること\n②競合他店での就労（甲が事前に書面で承認した場合を除く）\n③甲の信用を損なう行為\n④反社会的勢力との関係\n\n第６条（知的財産）\n乙が本業務遂行中に作成した成果物の知的財産権は甲に帰属するものとする。\n\n第７条（秘密保持）\n乙は本契約期間中および終了後2年間、甲の業務上の秘密を第三者に開示・漏洩してはならない。\n\n第８条（個人情報）\n乙は甲から提供される顧客の個人情報を本業務以外の目的に使用してはならず、厳重に管理するものとする。\n\n第９条（損害賠償）\n乙が本契約に違反し甲に損害を与えた場合、乙はその損害を賠償する責任を負う。\n\n第１０条（契約期間）\n本契約の有効期間は契約締結日より1年間とし、期間満了の1ヶ月前までに甲乙いずれかから書面による解約の申し出がない場合は、同一条件にて自動更新されるものとする。\n\n第１１条（中途解約）\n甲乙いずれも、30日前の書面による通知をもって本契約を解約できる。ただし、乙が第５条に違反した場合、甲は即時解約できる。\n\n第１２条（反社会的勢力の排除）\n甲乙は、相手方が反社会的勢力に該当することが判明した場合、催告なしに本契約を解除できる。\n\n第１３条（準拠法・管轄）\n本契約は日本法に準拠し、紛争が生じた場合は甲の所在地を管轄する裁判所を専属的合意管轄裁判所とする。\n\n契約日：{{contract_date}}\n\n甲：株式会社NONBEE　　　　　　　印\n乙：{{cast_name}}　　　　　　　　印';
 function loadContractData(){
@@ -4001,6 +4003,7 @@ function loadContractData(){
     if(d.identityVerifications)identityVerifications=d.identityVerifications;
     if(d.castContractStatuses)castContractStatuses=d.castContractStatuses;
     if(d.castRewardTerms)castRewardTerms=d.castRewardTerms;
+    if(d.castContractBodies)castContractBodies=d.castContractBodies;
     if(d.drinkBackTiers)drinkBackTiers=d.drinkBackTiers;
     if(d.drinkBackSettings)drinkBackSettings=d.drinkBackSettings;
   }
@@ -4118,8 +4121,55 @@ function openCastContractDetail(castId){
     +_btn2('btn outline small',castId,'markSigned','business','業務委託承認')
     +_btn2('btn outline small',castId,'markSigned','rules','ルール同意承認')
     +_btn('btn outline small',castId,'clearResign','再同意完了')
+    +'</div>'
+    +'<div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">'
+    +'<div style="font-size:13px;font-weight:700;margin-bottom:8px;">個別契約本文</div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;">'
+    +_btn2('btn outline small',castId,'openCastContractBodyEditor','business','業務委託契約を個別設定')
+    +_btn2('btn outline small',castId,'openCastContractBodyEditor','rules','出勤ルールを個別設定')
+    +(castContractBodies[castId]&&castContractBodies[castId].business?'<span class="shift-badge sb-green" style="align-self:center;">業務委託カスタム済</span>':'')
+    +(castContractBodies[castId]&&castContractBodies[castId].rules?'<span class="shift-badge sb-green" style="align-self:center;">ルールカスタム済</span>':'')
+    +'</div></div></div>';
+  document.body.appendChild(m);
+}
+function openCastContractBodyEditor(castId,contractType){
+  const c=demoCasts.find(function(x){return x.id===castId;});if(!c)return;
+  const tpl=contractTemplates.find(function(t){return t.contract_type===contractType&&t.status==='active';});
+  const defaultBody=tpl?tpl.body:'';
+  const currentBody=(castContractBodies[castId]&&castContractBodies[castId][contractType])||defaultBody;
+  const typeLabel=contractType==='business'?'業務委託契約書':'出勤ルール同意書';
+  let m=document.getElementById('castBodyEditorModal');if(m)m.remove();
+  m=document.createElement('div');m.id='castBodyEditorModal';
+  m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:300;display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto;';
+  m.innerHTML='<div style="background:#fff;border-radius:16px;padding:20px;width:100%;max-width:720px;max-height:92vh;overflow-y:auto;">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">'
+    +'<div style="font-size:15px;font-weight:800;color:var(--pink);">'+c.name+' の'+typeLabel+'（個別設定）</div>'
+    +'<button class="btn outline small" onclick="document.getElementById(\'castBodyEditorModal\').remove()">✕</button></div>'
+    +'<div style="font-size:12px;color:var(--muted);margin-bottom:8px;">差し込み変数：{{cast_name}} {{contract_date}} {{hourly_wage_before_20}} {{hourly_wage_before_22}} {{hourly_wage_after_22}} {{drink_back_rate}}</div>'
+    +'<textarea id="castBodyText" class="inp" style="min-height:360px;font-size:12px;line-height:1.7;">'+currentBody.replace(/</g,'&lt;')+'</textarea>'
+    +'<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">'
+    +'<button class="btn primary" onclick="saveCastContractBody(\''+castId+'\',\''+contractType+'\')">保存</button>'
+    +'<button class="btn outline" onclick="resetCastContractBody(\''+castId+'\',\''+contractType+'\')">デフォルトに戻す</button>'
+    +'<button class="btn outline" onclick="document.getElementById(\'castBodyEditorModal\').remove()">キャンセル</button>'
     +'</div></div>';
   document.body.appendChild(m);
+}
+function saveCastContractBody(castId,contractType){
+  if(!castContractBodies[castId])castContractBodies[castId]={};
+  castContractBodies[castId][contractType]=document.getElementById('castBodyText').value;
+  saveContractData();
+  document.getElementById('castBodyEditorModal').remove();
+  toast('✅ '+castId+'の契約本文を保存しました');
+  if(!castContractStatuses[castId])castContractStatuses[castId]={};
+  castContractStatuses[castId].needs_resign=true;
+  saveContractData();renderContractStatus();
+}
+function resetCastContractBody(castId,contractType){
+  if(!confirm('デフォルトテンプレートに戻しますか？'))return;
+  if(castContractBodies[castId])delete castContractBodies[castId][contractType];
+  saveContractData();
+  document.getElementById('castBodyEditorModal').remove();
+  toast('デフォルトに戻しました');
 }
 function approveIdentity(castId){
   if(!castContractStatuses[castId])castContractStatuses[castId]={};
@@ -4379,7 +4429,8 @@ function openSignModal(contractType){
   const cast=demoCasts.find(function(c){return c.id===currentUser.id;})||{};
   const tiers=drinkBackTiers.filter(function(t){return t.is_active;}).sort(function(a,b){return a.min_count-b.min_count;});
   const tierText=tiers.map(function(t){return t.min_count+'~'+(t.max_count||'')+'杯：'+t.back_rate+'%';}).join(' / ');
-  let body=tpl.body
+  const customBody=castContractBodies[currentUser.id]&&castContractBodies[currentUser.id][contractType];
+  let body=(customBody||tpl.body)
     .replace(/\{\{cast_name\}\}/g,cast.name||'')
     .replace(/\{\{contract_date\}\}/g,today())
     .replace(/\{\{hourly_wage_before_20\}\}/g,String(cast.hourly_wage_before_20||0))
