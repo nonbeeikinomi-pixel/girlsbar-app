@@ -590,7 +590,7 @@ td{padding:9px;border-bottom:1px solid var(--border);white-space:nowrap}
           <div class="fg"><label class="label">タイトル</label><input id="ctTplTitle" class="inp"></div>
           <div class="grid2"><div class="fg"><label class="label">バージョン</label><input id="ctTplVersion" class="inp" value="1.0"></div><div class="fg"><label class="label">有効開始日</label><input id="ctTplEffective" class="inp" type="date"></div></div>
           <div class="fg"><label class="label">ステータス</label><select id="ctTplStatus" class="inp"><option value="draft">下書き</option><option value="active">有効</option><option value="stopped">停止</option></select></div>
-          <div class="fg"><label class="label">本文（差し込み変数：{{cast_name}} {{contract_date}} {{hourly_wage}} {{drink_back_rate}}）</label><textarea id="ctTplBody" class="inp" style="min-height:180px;"></textarea></div>
+          <div class="fg"><label class="label">本文（差し込み変数：{{cast_name}} {{contract_date}} {{hourly_wage_before_20}} {{hourly_wage_before_22}} {{hourly_wage_after_22}} {{drink_back_rate}}）</label><textarea id="ctTplBody" class="inp" style="min-height:180px;"></textarea></div>
           <div class="grid2"><button class="btn primary full" onclick="saveTemplate()">保存</button><button class="btn outline full" onclick="hide('ctTemplateForm')">キャンセル</button></div>
         </div>
       </div>
@@ -3992,6 +3992,7 @@ function saveContractData(){
     identityVerifications:identityVerifications,castContractStatuses:castContractStatuses,
     castRewardTerms:castRewardTerms,drinkBackTiers:drinkBackTiers,drinkBackSettings:drinkBackSettings});
 }
+const BUSINESS_TPL_BODY='業務委託契約書\n\n株式会社NONBEE（以下「甲」という。）と {{cast_name}}（以下「乙」という。）は、以下の通り業務委託契約（以下「本契約」という。）を締結する。\n\n第１条（業務内容）\n甲は乙に対し、甲が経営するガールズバーにおける接客業務（以下「本業務」という。）を委託し、乙はこれを受託する。\n\n第２条（報酬）\n１．甲は乙に対し、本業務の対価として、下記の報酬を支払うものとする。\n　①基本時給：20時前 {{hourly_wage_before_20}}円 / 22時前 {{hourly_wage_before_22}}円 / 22時以降 {{hourly_wage_after_22}}円\n　②ドリンクバック：{{drink_back_rate}}\n２．報酬の支払いは、毎月末日締め翌月10日払いとする。\n\n第３条（業務遂行）\n乙は、自己の裁量と責任において本業務を遂行するものとし、甲の指揮命令下には入らない。乙は個人事業主として本業務に従事する。\n\n第４条（経費）\n本業務に要する経費は、別途書面にて合意した場合を除き、乙の負担とする。\n\n第５条（禁止事項）\n乙は以下の行為を行ってはならない。\n①甲の許可なく店内の情報・顧客情報を第三者に開示すること\n②競合他店での就労（甲が事前に書面で承認した場合を除く）\n③甲の信用を損なう行為\n④反社会的勢力との関係\n\n第６条（知的財産）\n乙が本業務遂行中に作成した成果物の知的財産権は甲に帰属するものとする。\n\n第７条（秘密保持）\n乙は本契約期間中および終了後2年間、甲の業務上の秘密を第三者に開示・漏洩してはならない。\n\n第８条（個人情報）\n乙は甲から提供される顧客の個人情報を本業務以外の目的に使用してはならず、厳重に管理するものとする。\n\n第９条（損害賠償）\n乙が本契約に違反し甲に損害を与えた場合、乙はその損害を賠償する責任を負う。\n\n第１０条（契約期間）\n本契約の有効期間は契約締結日より1年間とし、期間満了の1ヶ月前までに甲乙いずれかから書面による解約の申し出がない場合は、同一条件にて自動更新されるものとする。\n\n第１１条（中途解約）\n甲乙いずれも、30日前の書面による通知をもって本契約を解約できる。ただし、乙が第５条に違反した場合、甲は即時解約できる。\n\n第１２条（反社会的勢力の排除）\n甲乙は、相手方が反社会的勢力に該当することが判明した場合、催告なしに本契約を解除できる。\n\n第１３条（準拠法・管轄）\n本契約は日本法に準拠し、紛争が生じた場合は甲の所在地を管轄する裁判所を専属的合意管轄裁判所とする。\n\n契約日：{{contract_date}}\n\n甲：株式会社NONBEE　　　　　　　印\n乙：{{cast_name}}　　　　　　　　印';
 function loadContractData(){
   const d=lsGet('gb_contracts',null);
   if(d){
@@ -4003,10 +4004,13 @@ function loadContractData(){
     if(d.drinkBackTiers)drinkBackTiers=d.drinkBackTiers;
     if(d.drinkBackSettings)drinkBackSettings=d.drinkBackSettings;
   }
+  // 業務委託契約テンプレートは常に最新版で上書き
+  const tpl1=contractTemplates.find(function(t){return t.id==='tpl1';});
+  if(tpl1){tpl1.body=BUSINESS_TPL_BODY;saveContractData();}
   if(!contractTemplates.length){
     contractTemplates=[
       {id:'tpl1',contract_type:'business',title:'業務委託契約書',version:'1.0',status:'active',effective_from:today(),
-       body:'## 業務委託契約書\n\n本契約は {{cast_name}} と当店との間で締結します。\n\n### 報酬条件\n基本時給：{{hourly_wage}}円\n\n### ドリンクバック\n{{drink_back_rate}}\n\n契約日：{{contract_date}}'},
+       body:BUSINESS_TPL_BODY},
       {id:'tpl2',contract_type:'rules',title:'出勤ルール同意書',version:'1.0',status:'active',effective_from:today(),
        body:'## 出勤ルール同意書\n\n1. 無断欠勤・無断遅刻は禁止\n2. 顧客との店外連絡禁止\n3. 顧客情報の持出し禁止\n\n同意日：{{contract_date}}\n氏名：{{cast_name}}'}
     ];
@@ -4378,7 +4382,10 @@ function openSignModal(contractType){
   let body=tpl.body
     .replace(/\{\{cast_name\}\}/g,cast.name||'')
     .replace(/\{\{contract_date\}\}/g,today())
-    .replace(/\{\{hourly_wage\}\}/g,String(cast.hourly_wage_before_22||1300))
+    .replace(/\{\{hourly_wage_before_20\}\}/g,String(cast.hourly_wage_before_20||0))
+    .replace(/\{\{hourly_wage_before_22\}\}/g,String(cast.hourly_wage_before_22||0))
+    .replace(/\{\{hourly_wage_after_22\}\}/g,String(cast.hourly_wage_after_22||0))
+    .replace(/\{\{hourly_wage\}\}/g,String(cast.hourly_wage_before_22||0))
     .replace(/\{\{drink_back_rate\}\}/g,tierText);
   let m=document.getElementById('signModal');if(m)m.remove();
   m=document.createElement('div');m.id='signModal';
