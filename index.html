@@ -935,8 +935,10 @@ function calcMonthlyKPI(m){
 
   rows.forEach(r=>{
     const cast=castMap[r.cast_id];
-    totalSales+=(r.sales||0);
-    if(!cast)return;
+    if(!cast){
+      totalSales+=(r.sales||0);
+      return;
+    }
 
     // 固定時給（保証・協力金含む）
     const hw=calcHourlyPay(r,cast);
@@ -956,6 +958,9 @@ function calcMonthlyKPI(m){
     const bottleBK=(r.hon_bottle_back||0)+(r.free_bottle_back||0)||(r.bottle_back_amount||0);
     // 同伴バック
     const dohanBK=r.dohan_back||0;
+
+    // 総売上（指名＋ドリンク＋ボトル＋同伴）
+    totalSales+=(r.sales||0)+honDrink+freeApplied+bottleBK+dohanBK;
 
     // 総支給（送迎・日払手数料・業務遂行違反による損害補填は含まない）
     totalPay+=fixedTotal+honDrink+freeApplied+bottleBK+dohanBK;
