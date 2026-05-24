@@ -2138,7 +2138,9 @@ async function sbSaveReport(report){
   demoReports=demoReports.filter(r=>!(r.cast_id===report.cast_id&&r.report_date===report.report_date));
   demoReports.push(report);
   if(isDemo()) return;
-  const body={...report, updated_at:new Date().toISOString()};
+  // time型カラムは空文字をnullに変換
+  const body={...report, updated_at:new Date().toISOString(),
+    clock_in:report.clock_in||null, clock_out:report.clock_out||null};
   const res=await SB.upsert('daily_reports',body,'cast_id,report_date');
   if(res&&res.error){
     console.error('日報保存エラー:',res.error);
