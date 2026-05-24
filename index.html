@@ -947,22 +947,24 @@ function calcMonthlyKPI(m){
     const fixedTotal=hw+guarantee+coopFee;
     fixedWage+=fixedTotal;
 
-    // ドリンクバック（指名＋フリー）
+    // ドリンクバック（指名＋フリー）＝キャストへの支払いコスト
     const{honDrink,freeDrink}=calcDrinkSalesForCast(r,cast);
     honDrinkSales+=honDrink;
-    // フリードリンク反映率を適用
     const freeApplied=Math.round(freeDrink*(storeConfig.freeRate||100)/100);
     freeDrinkSales+=freeApplied;
+
+    // 店舗ドリンク売上（顧客が支払う金額 = drinkPrices × 杯数）
+    const adminDrink=calcDrinkSalesAdmin(r);
 
     // ボトルバック
     const bottleBK=(r.hon_bottle_back||0)+(r.free_bottle_back||0)||(r.bottle_back_amount||0);
     // 同伴バック
     const dohanBK=r.dohan_back||0;
 
-    // 総売上（指名＋ドリンク＋ボトル＋同伴）
-    totalSales+=(r.sales||0)+honDrink+freeApplied+bottleBK+dohanBK;
+    // 総売上（指名 + 店舗ドリンク売上 + ボトル + 同伴）
+    totalSales+=(r.sales||0)+adminDrink.honDrink+adminDrink.freeDrink+bottleBK+dohanBK;
 
-    // 総支給（送迎・日払手数料・業務遂行違反による損害補填は含まない）
+    // 総支給（キャストへのコスト）
     totalPay+=fixedTotal+honDrink+freeApplied+bottleBK+dohanBK;
     // 送迎（実質コストに含む）
     transport+=(r.transport||0);
@@ -2095,6 +2097,24 @@ function castToSBPayload(cast){
   keys.forEach(function(k){if(cast[k]!==undefined)p[k]=cast[k];});
   return p;
 }
+function reportToSBPayload(report){
+  // Supabaseのdaily_reportsテーブルに存在するカラムのみ送信
+  const keys=[
+    'cast_id','report_date','break_minutes',
+    'catch_count','request_honshimei','request_shinki','request_baai',
+    'sales','drink_s','drink_m','drink_l','shots',
+    'hon_bottle_back','free_bottle_back','bottle_back_amount','bottle_brand','bottle_count',
+    'free_count','free_drink_s','free_drink_m','free_drink_l','free_shots',
+    'dohan','dohan_back','transport',
+    'daily_target_sales','win_loss','reflection'
+  ];
+  const p={};
+  keys.forEach(function(k){if(report[k]!==undefined)p[k]=report[k];});
+  // time型カラムは空文字をnullに変換
+  p.clock_in=report.clock_in||null;
+  p.clock_out=report.clock_out||null;
+  return p;
+}
 async function sbSaveCast(cast){
   if(isDemo()){
     demoCasts=demoCasts.filter(c=>c.id!==cast.id);
@@ -2143,9 +2163,7 @@ async function sbSaveReport(report){
   demoReports=demoReports.filter(r=>!(r.cast_id===report.cast_id&&r.report_date===report.report_date));
   demoReports.push(report);
   if(isDemo()) return;
-  // time型カラムは空文字をnullに変換
-  const body={...report, updated_at:new Date().toISOString(),
-    clock_in:report.clock_in||null, clock_out:report.clock_out||null};
+  const body={...reportToSBPayload(report), updated_at:new Date().toISOString()};
   const res=await SB.upsert('daily_reports',body,'cast_id,report_date');
   if(res&&res.error){
     console.error('日報保存エラー:',res.error);
