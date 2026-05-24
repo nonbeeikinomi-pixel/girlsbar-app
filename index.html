@@ -2134,12 +2134,21 @@ async function loadReportsForMonth(m){
   return demoReports.filter(r=>r.report_date.startsWith(m));
 }
 async function sbSaveReport(report){
-  if(isDemo()){
-    demoReports=demoReports.filter(r=>!(r.cast_id===report.cast_id&&r.report_date===report.report_date));
-    demoReports.push(report);return;
-  }
+  // ローカルをすぐ更新（画面反映）
+  demoReports=demoReports.filter(r=>!(r.cast_id===report.cast_id&&r.report_date===report.report_date));
+  demoReports.push(report);
+  if(isDemo()) return;
   const body={...report, updated_at:new Date().toISOString()};
-  return await SB.upsert('daily_reports',body,'cast_id,report_date');
+  const res=await SB.upsert('daily_reports',body,'cast_id,report_date');
+  if(res&&res.error){
+    console.error('日報保存エラー:',res.error);
+    alert('❌ 日報保存失敗\n\n'+(res.error.message||JSON.stringify(res.error)));
+    return res;
+  }
+  // Supabaseから当月分を再取得して同期
+  const m=report.report_date.substring(0,7);
+  await loadReportsForMonth(m);
+  return res;
 }
 
 // 月間目標
