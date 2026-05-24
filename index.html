@@ -4469,10 +4469,10 @@ function loadMyContract(){
     {label:'本人情報の提出',done:iv.status==='approved',pending:iv.status==='pending',
      action:iv.status==='not_submitted'||iv.status==='rejected'?'openIdentityForm()':null,
      note:iv.status==='rejected'?'差し戻し理由：'+(iv.rejection_reason||''):iv.status==='pending'?'確認中です':''},
-    {label:'業務委託契約に署名',done:hasBusiness,pending:false,action:!hasBusiness?'openSignModal("business")':null},
-    {label:'出勤ルールに同意',done:hasRules,pending:false,action:!hasRules?'openSignModal("rules")':null},
+    {label:'業務委託契約に署名',done:hasBusiness,pending:false,action:!hasBusiness?"openSignModal('business')":null},
+    {label:'出勤ルールに同意',done:hasRules,pending:false,action:!hasRules?"openSignModal('rules')":null},
     {label:'再同意（内容更新あり）',done:!s.needs_resign,pending:s.needs_resign,
-     action:s.needs_resign?'openSignModal("business")':null,note:s.needs_resign?'契約内容が更新されました。再同意が必要です。':''}
+     action:s.needs_resign?"openSignModal('business')":null,note:s.needs_resign?'契約内容が更新されました。再同意が必要です。':''}
   ];
   const el=document.getElementById('myContractTodo');if(!el)return;
   el.innerHTML=
