@@ -1,4 +1,4 @@
-const CACHE_NAME = 'girlsbar-v4';
+const CACHE_NAME = 'girlsbar-v5';
 const ASSETS = [
   './',
   './index.html',
@@ -26,7 +26,15 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
-  // ネットワーク優先、失敗時はキャッシュから返す
+  const url = new URL(event.request.url);
+
+  // Supabase API・外部APIはキャッシュしない（認証情報・個人情報の漏洩防止）
+  if (url.hostname.includes('supabase.co') || url.hostname.includes('supabase.io')) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
+  // 静的アセットのみ: ネットワーク優先、失敗時はキャッシュから返す
   event.respondWith(
     fetch(event.request)
       .then(response => {
