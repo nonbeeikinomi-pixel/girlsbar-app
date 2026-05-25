@@ -4243,20 +4243,35 @@ function openCastContractDetail(castId){
   let m=document.getElementById('contractDetailModal');if(m)m.remove();
   m=document.createElement('div');m.id='contractDetailModal';
   m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto;';
-  const rows=[['本人確認',s.identity_status||'not_submitted'],['業務委託契約',s.business_contract_status||'not_signed'],['ルール同意',s.rule_agreement_status||'not_signed']];
+  const idSt=s.identity_status||'not_submitted';
+  const bizSt=s.business_contract_status||'not_signed';
+  const ruleSt=s.rule_agreement_status||'not_signed';
+  const rows=[['本人確認',idSt],['業務委託契約',bizSt],['ルール同意',ruleSt]];
+
+  // ステータスに応じたボタンを生成
+  const idBtns=idSt==='approved'
+    ?_btn('btn danger small',castId,'revokeIdentity','本確認承認を取り消し')
+    :(_btn('btn primary small',castId,'approveIdentity','本確認承認')+_btn('btn danger small',castId,'rejectIdentity','本確認差戻'));
+  const bizBtns=bizSt==='signed'
+    ?_btn2('btn danger small',castId,'revokeContractSigned','business','業務委託署名を取り消し')
+    :_btn2('btn outline small',castId,'markSigned','business','業務委託承認');
+  const ruleBtns=ruleSt==='signed'
+    ?_btn2('btn danger small',castId,'revokeContractSigned','rules','ルール同意を取り消し')
+    :_btn2('btn outline small',castId,'markSigned','rules','ルール同意承認');
+  const resignBtn=s.needs_resign?_btn('btn outline small',castId,'clearResign','再同意完了'):'';
+
   m.innerHTML='<div style="background:#fff;border-radius:16px;padding:20px;width:100%;max-width:600px;max-height:90vh;overflow-y:auto;">'
     +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">'
-    +'<div style="font-size:15px;font-weight:800;color:var(--pink);">'+c.name+' の契約状況</div>'
+    +'<div style="font-size:15px;font-weight:800;color:var(--pink);">'+escapeHtml(c.name)+' の契約状況</div>'
     +'<button class="btn outline small" data-modal="contractDetailModal" onclick="closeContractModal(this.dataset.modal)">✕</button></div>'
-    +'<div style="margin-bottom:14px;">'+rows.map(function(r){return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="font-weight:700;">'+r[0]+'</span>'+contractStatusBadge(r[1])+'</div>';}).join('')+'</div>'
-    +'<div style="display:flex;gap:8px;flex-wrap:wrap;">'
-    +_btn('btn primary small',castId,'approveIdentity','本確認承認')
-    +_btn('btn danger small',castId,'rejectIdentity','本確認差戻')
-    +_btn2('btn outline small',castId,'markSigned','business','業務委託承認')
-    +_btn2('btn outline small',castId,'markSigned','rules','ルール同意承認')
-    +_btn('btn outline small',castId,'clearResign','再同意完了')
-    +'</div>'
-    +'<div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">'
+    +'<div style="margin-bottom:14px;">'+rows.map(function(r){return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="font-weight:700;">'+escapeHtml(r[0])+'</span>'+contractStatusBadge(r[1])+'</div>';}).join('')+'</div>'
+    +'<div style="background:#fafafa;border-radius:10px;padding:12px;margin-bottom:10px;">'
+    +'<div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:8px;">🪪 本人確認</div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;">'+idBtns+'</div></div>'
+    +'<div style="background:#fafafa;border-radius:10px;padding:12px;margin-bottom:10px;">'
+    +'<div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:8px;">📄 契約書・同意</div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;">'+bizBtns+ruleBtns+resignBtn+'</div></div>'
+    +'<div style="padding-top:14px;border-top:1px solid var(--border);">'
     +'<div style="font-size:13px;font-weight:700;margin-bottom:8px;">個別契約本文</div>'
     +'<div style="display:flex;gap:8px;flex-wrap:wrap;">'
     +_btn2('btn outline small',castId,'openCastContractBodyEditor','business','業務委託契約を個別設定')
@@ -4319,6 +4334,24 @@ function rejectIdentity(castId){
   identityVerifications[castId].rejection_reason=reason;
   saveContractData();document.getElementById('contractDetailModal')?.remove();
   renderContractStatus();toast('差し戻しました');
+}
+function revokeIdentity(castId){
+  if(!confirm('本人確認の承認を取り消し、「確認待ち」に戻しますか？'))return;
+  if(!castContractStatuses[castId])castContractStatuses[castId]={};
+  castContractStatuses[castId].identity_status='pending';
+  saveContractData();document.getElementById('contractDetailModal')?.remove();
+  openCastContractDetail(castId);
+  renderContractStatus();toast('⚠️ 本人確認の承認を取り消しました');
+}
+function revokeContractSigned(castId,type){
+  const label=type==='business'?'業務委託署名':'ルール同意';
+  if(!confirm(label+'の承認を取り消し、「未署名」に戻しますか？'))return;
+  if(!castContractStatuses[castId])castContractStatuses[castId]={};
+  if(type==='business')castContractStatuses[castId].business_contract_status='not_signed';
+  if(type==='rules')castContractStatuses[castId].rule_agreement_status='not_signed';
+  saveContractData();document.getElementById('contractDetailModal')?.remove();
+  openCastContractDetail(castId);
+  renderContractStatus();toast('⚠️ '+label+'の承認を取り消しました');
 }
 function markSigned(castId,type){
   if(!castContractStatuses[castId])castContractStatuses[castId]={};
