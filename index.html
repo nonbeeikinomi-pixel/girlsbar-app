@@ -1125,8 +1125,14 @@ function goTab(el,id){
 // ================================================================
 // ヘルパー
 // ================================================================
-const castName=id=>(demoCasts.find(c=>c.id===id)||{}).name||'—';
-const badge=x=>`<span class="badge ${x==='勝ち'?'win':x==='負け'?'loss':'draw'}">${x||'—'}</span>`;
+// XSS対策: innerHTML に展開するすべての文字列はこの関数でエスケープする
+function escapeHtml(s){
+  return String(s==null?'':s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+const castName=id=>escapeHtml((demoCasts.find(c=>c.id===id)||{}).name||'—');
+const badge=x=>`<span class="badge ${x==='勝ち'?'win':x==='負け'?'loss':'draw'}">${escapeHtml(x)||'—'}</span>`;
 const rowsForMonth=m=>demoReports.filter(r=>r.report_date?.startsWith(m));
 const totalNominated=r=>(r.request_honshimei||0)+(r.request_shinki||0)+(r.request_baai||0);
 
@@ -1160,7 +1166,7 @@ function tableReports(rows, own=false, editable=false){
     const slide=cast?calcSlideSales(r,cast):(r.sales||0)+honDrink+freeDrink+honBottle+freeBottle+(r.dohan_back||0);
     const nomCount=totalNominated(r);
     return `<tr>
-      <td>${r.report_date}</td>${own?'':`<td>${castName(r.cast_id)}</td>`}
+      <td>${escapeHtml(r.report_date)}</td>${own?'':`<td>${castName(r.cast_id)}</td>`}
       <td class="num">${yen(r.sales||0)}</td>
       <td class="num">${nomCount}</td>
       <td class="num">${yen(honDrink)}</td>
@@ -1597,7 +1603,7 @@ function renderStoreDailyHistory(){
         ${isSelected?'<span style="background:var(--pink);color:#fff;border-radius:99px;padding:2px 8px;font-size:10px;font-weight:800;">修正中</span>':''}
       </div>
       <div style="font-size:14px;font-weight:800;color:var(--dark);">${yen(r.total_sales)}</div>
-      ${r.comment?`<div style="font-size:11px;color:var(--muted);flex:1;min-width:100%;">${r.comment}</div>`:''}
+      ${r.comment?`<div style="font-size:11px;color:var(--muted);flex:1;min-width:100%;">${escapeHtml(r.comment)}</div>`:''}
     </div>`;}).join('');
 }
 function selectStoreDailyReport(date){
@@ -1871,12 +1877,16 @@ function loadMgmt(){
 function loadCastList(){
   document.getElementById('castListInner').innerHTML=demoCasts.map(c=>`
     <div class="castitem" style="display:flex;justify-content:space-between;align-items:center;">
-      <div onclick='openEditWage(${JSON.stringify(c).replace(/'/g,"&#39;")})' style="flex:1;cursor:pointer;">
-        <b style="color:var(--pink)">✏️ ${c.name}</b>
-        <div class="note">${c.email} / 20前${yen(c.hourly_wage_before_20||0)} / 22前${yen(c.hourly_wage_before_22)} / 22後${yen(c.hourly_wage_after_22)} / DS${yen(c.drink_back_s)} DM${yen(c.drink_back_m)} DL${yen(c.drink_back_l)} Sh${yen(c.shot_back)}</div>
+      <div onclick="openEditWageById('${escapeHtml(c.id)}')" style="flex:1;cursor:pointer;">
+        <b style="color:var(--pink)">✏️ ${escapeHtml(c.name)}</b>
+        <div class="note">${escapeHtml(c.email)} / 20前${yen(c.hourly_wage_before_20||0)} / 22前${yen(c.hourly_wage_before_22)} / 22後${yen(c.hourly_wage_after_22)} / DS${yen(c.drink_back_s)} DM${yen(c.drink_back_m)} DL${yen(c.drink_back_l)} Sh${yen(c.shot_back)}</div>
       </div>
       <button class="btn danger small" data-id="${c.id}" onclick="deleteCast(this.dataset.id)">削除</button>
     </div>`).join('');
+}
+function openEditWageById(id){
+  const c=demoCasts.find(x=>x.id===id);
+  if(c) openEditWage(c);
 }
 function openEditWage(c){
   show('editWagePanel');
@@ -3473,7 +3483,7 @@ function renderSmSubmitStatus(m){
         </div>
         ${req.wishDates.length?`<div style="font-size:11px;color:#31640d;margin-top:4px;">🟢 希望日：${req.wishDates.map(d=>formatDate(d)).join('、')}</div>`:''}
         ${req.ngDates.length?`<div style="font-size:11px;color:#a32d2d;margin-top:2px;">🚫 NG日：${req.ngDates.map(d=>formatDate(d)).join('、')}</div>`:''}
-        ${req.comment?`<div style="font-size:11px;color:var(--muted);margin-top:2px;">💬 ${req.comment}</div>`:''}
+        ${req.comment?`<div style="font-size:11px;color:var(--muted);margin-top:2px;">💬 ${escapeHtml(req.comment)}</div>`:''}
       </div>`;
     });
   });
@@ -3739,12 +3749,12 @@ function renderSmChangeRequests(m){
   if(!list.length){el.innerHTML='<p class="note" style="text-align:center;padding:14px;">修正依頼はありません</p>';return;}
   el.innerHTML=list.map(c=>`<div class="shift-card">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px;">
-      <span style="font-weight:800;">${c.castName}　${formatDate(c.date)}</span>
+      <span style="font-weight:800;">${escapeHtml(c.castName)}　${escapeHtml(formatDate(c.date))}</span>
       <span class="shift-badge sb-yellow">⏳ 承認待ち</span>
     </div>
     <div style="font-size:13px;margin-bottom:4px;">現在：${c.currentShift}</div>
-    <div style="font-size:13px;margin-bottom:4px;">希望：${c.requestContent}</div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">理由：${c.reason}</div>
+    <div style="font-size:13px;margin-bottom:4px;">希望：${escapeHtml(c.requestContent)}</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">理由：${escapeHtml(c.reason)}</div>
     <div style="display:flex;gap:8px;">
       <button class="btn primary small" onclick="handleChangeRequest('${c.id}','approved')">✅ 承認</button>
       <button class="btn danger small" onclick="handleChangeRequest('${c.id}','rejected')">❌ 却下</button>
