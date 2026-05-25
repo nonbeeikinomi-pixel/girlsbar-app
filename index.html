@@ -1772,7 +1772,8 @@ async function saveEditReport(id, isNew=false){
     daily_target_sales:Number(v('er_target'))||0,
     win_loss:v('er_wl'), reflection:v('er_ref')
   };
-  await sbSaveReport(report);
+  const saveRes=await sbSaveReport(report);
+  if(!isDemo()&&saveRes&&saveRes.error) return; // エラーアラートは sbSaveReport 内で表示済み
   document.getElementById('editReportModal').remove();
   loadAdminDay(); loadAdminTop(); loadAdminCast();
   toast(isNew?'✅ 日報を追加しました':'✅ 日報を修正しました');
@@ -2162,9 +2163,23 @@ async function sbSaveReport(report){
   // ローカルをすぐ更新（画面反映）
   demoReports=demoReports.filter(r=>!(r.cast_id===report.cast_id&&r.report_date===report.report_date));
   demoReports.push(report);
-  if(isDemo()) return;
+  if(isDemo()) return {data:report};
   const body={...reportToSBPayload(report), updated_at:new Date().toISOString()};
-  const res=await SB.upsert('daily_reports',body,'cast_id,report_date');
+  // ユニーク制約不要：既存レコードをGETして PATCH or POST に切り替え
+  const {data:existing}=await SB.get('daily_reports',{
+    filters:[['cast_id','eq',report.cast_id],['report_date','eq',report.report_date]],
+    limit:1
+  });
+  let res;
+  if(existing&&existing.length>0){
+    // 既存レコードを PATCH で更新
+    res=await SB.patch('daily_reports',
+      [['cast_id','eq',report.cast_id],['report_date','eq',report.report_date]],
+      body);
+  } else {
+    // 新規 POST
+    res=await SB.post('daily_reports',body);
+  }
   if(res&&res.error){
     console.error('日報保存エラー:',res.error);
     alert('❌ 日報保存失敗\n\n'+(res.error.message||JSON.stringify(res.error)));
