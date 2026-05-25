@@ -931,7 +931,7 @@ function calcMonthlyKPI(m){
   const castMap=castByIdMap();
 
   let totalSales=0, fixedWage=0, totalPay=0, transport=0;
-  let freeDrinkSales=0, honDrinkSales=0;
+  let freeDrinkSales=0, honDrinkSales=0, adminDrinkTotal=0;
 
   rows.forEach(r=>{
     const cast=castMap[r.cast_id];
@@ -955,6 +955,7 @@ function calcMonthlyKPI(m){
 
     // 店舗ドリンク売上（顧客が支払う金額 = drinkPrices × 杯数）
     const adminDrink=calcDrinkSalesAdmin(r);
+    adminDrinkTotal+=adminDrink.honDrink+adminDrink.freeDrink;
 
     // ボトルバック
     const bottleBK=(r.hon_bottle_back||0)+(r.free_bottle_back||0)||(r.bottle_back_amount||0);
@@ -987,7 +988,7 @@ function calcMonthlyKPI(m){
   // フリードリンク比率
   const freeDrinkRatio=baseSales>0?Math.round(freeDrinkSales/baseSales*1000)/10:0;
 
-  return{baseSales,fixedWage,totalPay,transport,fixedRate,totalRate,costRate,genka,profit,freeDrinkSales,honDrinkSales,freeDrinkRatio,totalDrinkAll:honDrinkSales+freeDrinkSales};
+  return{baseSales,fixedWage,totalPay,transport,fixedRate,totalRate,costRate,genka,profit,freeDrinkSales,honDrinkSales,freeDrinkRatio,totalDrinkAll:honDrinkSales+freeDrinkSales,totalDrinkRevenue:adminDrinkTotal};
 }
 
 
@@ -1441,7 +1442,7 @@ function loadAdminTop(){
     <!-- サブ指標 -->
     <div class="stats" style="margin-bottom:14px;">
       <div class="stat"><div class="val">${yen(kpi.baseSales)}</div><div class="lbl">総売上</div></div>
-      <div class="stat"><div class="val">${yen(kpi.totalDrinkAll)}</div><div class="lbl">ドリンク売上</div></div>
+      <div class="stat"><div class="val">${yen(kpi.totalDrinkRevenue)}</div><div class="lbl">ドリンク売上<br><small style="font-weight:400;">顧客支払額</small></div></div>
       <div class="stat"><div class="val">${kpi.freeDrinkRatio}%</div><div class="lbl">フリードリンク比率<br><small style="font-weight:400;">(反映率${storeConfig.freeRate}%)</small></div></div>
       <div class="stat"><div class="val">${totalNom}</div><div class="lbl">指名数合計</div></div>
     </div>
