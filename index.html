@@ -3998,10 +3998,12 @@ function getNextDrinkStep(totalCups){
 }
 
 // ── 月間ドリンク杯数（S+M+L+ショット、ボトル除く）──
+// S=0.85杯、M=1杯、L=1.25杯、ショット=1杯換算で段階判定用の月間杯数を計算
 function calcMonthlyDrinkCups(castId, m){
   return demoReports.filter(r=>r.cast_id===castId&&r.report_date.startsWith(m)).reduce((s,r)=>{
-    return s+(r.drink_s||0)+(r.drink_m||0)+(r.drink_l||0)+(r.shots||0)
-            +(r.free_drink_s||0)+(r.free_drink_m||0)+(r.free_drink_l||0)+(r.free_shots||0);
+    return s
+      +(r.drink_s||0)*0.85+(r.drink_m||0)*1+(r.drink_l||0)*1.25+(r.shots||0)*1
+      +(r.free_drink_s||0)*0.85+(r.free_drink_m||0)*1+(r.free_drink_l||0)*1.25+(r.free_shots||0)*1;
   },0);
 }
 
