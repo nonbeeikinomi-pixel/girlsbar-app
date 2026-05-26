@@ -2197,8 +2197,8 @@ async function loadAllCasts(){
   if(isDemo())return;
   const{data}=await SB.get('casts',{filters:[['is_active','eq',true],['role','eq','cast']],order:'created_at.asc'});
   if(data&&data.length){
-    // SupabaseのデータにlocalストアのドリンクBK個別設定をマージ
-    demoCasts=data.map(c=>({...c,...(castBackSettings[c.id]||{})}));
+    // Supabaseが正。localStorageはSupabaseにない場合のフォールバック
+    demoCasts=data.map(c=>({...(castBackSettings[c.id]||{}),...c}));
   }
 }
 function castToSBPayload(cast){
@@ -2206,7 +2206,8 @@ function castToSBPayload(cast){
   const keys=['name','email','role','is_active','member_type',
     'hourly_wage_before_20','hourly_wage_before_22','hourly_wage_after_22',
     'drink_back_s','drink_back_m','drink_back_l','shot_back',
-    'back_rate','dohan_back_per','password_hash'];
+    'back_rate','dohan_back_per','password_hash',
+    'use_tiered_back','custom_drink_tiers'];
   const p={};
   keys.forEach(function(k){if(cast[k]!==undefined)p[k]=cast[k];});
   return p;
