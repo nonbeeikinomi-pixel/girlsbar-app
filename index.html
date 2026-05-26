@@ -800,6 +800,25 @@ td{padding:9px;border-bottom:1px solid var(--border);white-space:nowrap}
         </div>
         <div id="editDrinkBackPreview" style="font-size:12px;color:var(--muted);"></div>
       </div>
+      <div style="background:#fff3f7;border:1.5px solid var(--pink);border-radius:10px;padding:12px;margin-bottom:12px;">
+        <div style="font-size:12px;font-weight:800;color:var(--pink);margin-bottom:8px;">🎚️ ドリンクBK方式</div>
+        <div style="display:flex;gap:20px;margin-bottom:8px;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+            <input type="radio" name="editDrinkMode" value="fixed" onchange="toggleEditDrinkMode()"> 固定単価（上記の設定）
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+            <input type="radio" name="editDrinkMode" value="tiered" onchange="toggleEditDrinkMode()"> 段階バック率
+          </label>
+        </div>
+        <div id="editTierPanel" style="display:none;">
+          <p style="font-size:11px;color:var(--muted);margin:0 0 8px;">月間合計杯数に応じてドリンク単価×バック率%で自動計算します。</p>
+          <div id="editTierList"></div>
+          <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+            <button type="button" class="btn outline small" onclick="addEditTier()">＋ 段階を追加</button>
+            <button type="button" class="btn outline small" onclick="useDefaultTiers()">店舗デフォルトに戻す</button>
+          </div>
+        </div>
+      </div>
       <div class="grid2">
         <div class="fg"><label class="label">同伴バック単価（円/回）</label><input id="editDohanBack" class="inp" type="number"></div>
       </div>
@@ -858,6 +877,8 @@ bottleMasters     = lsGet('gb_bottles',    DEMO_BOTTLES_DEFAULT);
 storeDailyReports = lsGet('gb_storeDaily', []);
 drinkPrices       = lsGet('gb_drinkPrices',drinkPrices);
 storeConfig       = lsGet('gb_storeConfig',storeConfig);
+// キャスト個別のドリンクBK設定（Supabaseに列がない項目をlocalStorageで管理）
+let castBackSettings = lsGet('gb_castBackSettings', {});
 
 // ── デモ保存関数（全データをlocalStorageに書き出す）──
 function saveDemoData(){
@@ -996,19 +1017,39 @@ function calcMonthlyKPI(m){
 // ドリンク売上計算（キャスト別バック単価 × 杯数）
 // ================================================================
 function calcDrinkSalesForCast(r, cast){
-  // 指名ドリンク売上（= ドリンクバック）
+  // 段階バック率モード
+  if(cast&&cast.use_tiered_back){
+    const m=(r.report_date||'').substring(0,7);
+    const totalCups=m?calcMonthlyDrinkCups(cast.id,m):0;
+    // キャスト個別段階 → 店舗デフォルト(DRINK_STEPS)の順で参照
+    const tiers=(cast.custom_drink_tiers&&cast.custom_drink_tiers.length)
+      ?cast.custom_drink_tiers:DRINK_STEPS;
+    const step=tiers.find(s=>totalCups>=s.min&&totalCups<=(s.max==null||s.max===Infinity?Infinity:s.max))||tiers[tiers.length-1]||{rate:0};
+    const rate=(step.rate||0)/100;
+    const hon_ds=Math.round((r.drink_s||0)*drinkPrices.s*rate);
+    const hon_dm=Math.round((r.drink_m||0)*drinkPrices.m*rate);
+    const hon_dl=Math.round((r.drink_l||0)*drinkPrices.l*rate);
+    const hon_sh=Math.round((r.shots||0)*drinkPrices.shot*rate);
+    const free_ds=Math.round((r.free_drink_s||0)*drinkPrices.s*rate);
+    const free_dm=Math.round((r.free_drink_m||0)*drinkPrices.m*rate);
+    const free_dl=Math.round((r.free_drink_l||0)*drinkPrices.l*rate);
+    const free_sh=Math.round((r.free_shots||0)*drinkPrices.shot*rate);
+    const honDrink=hon_ds+hon_dm+hon_dl+hon_sh;
+    const freeDrink=free_ds+free_dm+free_dl+free_sh;
+    return{honDrink,freeDrink,totalDrink:honDrink+freeDrink};
+  }
+  // 固定単価モード（デフォルト）
   const hon_ds=(r.drink_s||0)*(cast.drink_back_s||0);
   const hon_dm=(r.drink_m||0)*(cast.drink_back_m||0);
   const hon_dl=(r.drink_l||0)*(cast.drink_back_l||0);
   const hon_sh=(r.shots||0)*(cast.shot_back||0);
-  // フリードリンク売上
   const free_ds=(r.free_drink_s||0)*(cast.drink_back_s||0);
   const free_dm=(r.free_drink_m||0)*(cast.drink_back_m||0);
   const free_dl=(r.free_drink_l||0)*(cast.drink_back_l||0);
   const free_sh=(r.free_shots||0)*(cast.shot_back||0);
   const honDrink=hon_ds+hon_dm+hon_dl+hon_sh;
   const freeDrink=free_ds+free_dm+free_dl+free_sh;
-  return {honDrink, freeDrink, totalDrink:honDrink+freeDrink};
+  return{honDrink,freeDrink,totalDrink:honDrink+freeDrink};
 }
 
 // 個人売上 = 指名売上 + 指名ドリンク売上 + フリードリンク売上 + 指名ボトルBK + フリーボトルBK + 同伴BK
@@ -1903,9 +1944,58 @@ function openEditWage(c){
   set('editDrinkL',  c.drink_back_l_rate!=null?c.drink_back_l_rate:toRate(c.drink_back_l||0,drinkPrices.l));
   set('editShotBack',c.shot_back_rate!=null?c.shot_back_rate:toRate(c.shot_back||0,drinkPrices.shot));
   set('editDohanBack',c.dohan_back_per||0);
-  set('editDohanBack',c.dohan_back_per||0);
+  // 段階バック設定を反映
+  const drinkMode=c.use_tiered_back?'tiered':'fixed';
+  document.querySelectorAll('input[name="editDrinkMode"]').forEach(r=>{r.checked=r.value===drinkMode;});
+  document.getElementById('editTierPanel').style.display=c.use_tiered_back?'':'none';
+  renderEditTierList(c.custom_drink_tiers||null);
   document.getElementById('editWagePanel').scrollIntoView({behavior:'smooth'});
 }
+// ── 段階バック UI ヘルパー ─────────────────────────────────
+function toggleEditDrinkMode(){
+  const tiered=document.querySelector('input[name="editDrinkMode"]:checked')?.value==='tiered';
+  document.getElementById('editTierPanel').style.display=tiered?'':'none';
+}
+function renderEditTierList(tiers){
+  const el=document.getElementById('editTierList');if(!el)return;
+  // null / 空配列 → 店舗デフォルト使用中を表示
+  if(!tiers||!tiers.length){
+    el.innerHTML='<p style="font-size:11px;color:var(--muted);margin:0 0 6px;">（店舗デフォルトの段階設定を使用）</p>';
+    return;
+  }
+  el.innerHTML=tiers.map((t,i)=>`
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap;">
+      <input class="inp" type="number" id="etier_min_${i}" value="${t.min}" style="width:68px;padding:5px;">〜
+      <input class="inp" type="number" id="etier_max_${i}" value="${t.max===Infinity||t.max==null?999:t.max}" style="width:68px;padding:5px;">杯
+      <input class="inp" type="number" id="etier_rate_${i}" value="${t.rate}" style="width:60px;padding:5px;">%
+      <button type="button" class="btn danger small" onclick="removeEditTier(${i})">－</button>
+    </div>`).join('');
+}
+function getEditTiersFromUI(){
+  const tiers=[];let i=0;
+  while(document.getElementById('etier_min_'+i)){
+    const mx=Number(document.getElementById('etier_max_'+i).value||999);
+    tiers.push({min:Number(document.getElementById('etier_min_'+i).value||0),
+      max:mx>=999?Infinity:mx,
+      rate:Number(document.getElementById('etier_rate_'+i).value||0)});
+    i++;
+  }
+  return tiers;
+}
+function addEditTier(){
+  const current=document.getElementById('etier_min_0')?getEditTiersFromUI():[];
+  const prevMax=current.length?current[current.length-1].max:Infinity;
+  const newMin=prevMax===Infinity?0:prevMax+1;
+  current.push({min:newMin,max:Infinity,rate:10});
+  renderEditTierList(current);
+}
+function removeEditTier(idx){
+  const tiers=getEditTiersFromUI();tiers.splice(idx,1);renderEditTierList(tiers);
+}
+function useDefaultTiers(){
+  renderEditTierList(null); // null = 店舗デフォルト
+}
+// ─────────────────────────────────────────────────────────────
 async function deleteCast(id){
   const c=demoCasts.find(x=>x.id===id);if(!c)return;
   const cnt=demoReports.filter(r=>r.cast_id===id).length;
@@ -1920,6 +2010,8 @@ async function saveWage(){
     const edm=Math.round(drinkPrices.m * nv('editDrinkM') / 100);
     const edl=Math.round(drinkPrices.l * nv('editDrinkL') / 100);
     const edshot=Math.round(drinkPrices.shot * nv('editShotBack') / 100);
+    const useTiered=document.querySelector('input[name="editDrinkMode"]:checked')?.value==='tiered';
+    const customTiers=useTiered?getEditTiersFromUI():null;
     Object.assign(c,{
       member_type:v('editMemberType')||'semi',
       hourly_wage_before_20:nv('editWageBefore20'),
@@ -1929,8 +2021,15 @@ async function saveWage(){
       drink_back_s:eds, drink_back_m:edm, drink_back_l:edl, shot_back:edshot,
       drink_back_s_rate:nv('editDrinkS'), drink_back_m_rate:nv('editDrinkM'),
       drink_back_l_rate:nv('editDrinkL'), shot_back_rate:nv('editShotBack'),
-      dohan_back_per:nv('editDohanBack')
+      dohan_back_per:nv('editDohanBack'),
+      use_tiered_back:useTiered,
+      custom_drink_tiers:customTiers
     });
+    // 段階設定はlocalStorageで個別管理（Supabaseスキーマ変更不要）
+    if(!castBackSettings[c.id])castBackSettings[c.id]={};
+    castBackSettings[c.id].use_tiered_back=useTiered;
+    castBackSettings[c.id].custom_drink_tiers=customTiers;
+    lsSet('gb_castBackSettings',castBackSettings);
     await sbSaveCast(c);
   }
   hide('editWagePanel');loadCastList();toast('✅ 給与設定を保存しました');
@@ -2097,7 +2196,10 @@ const SB={
 async function loadAllCasts(){
   if(isDemo())return;
   const{data}=await SB.get('casts',{filters:[['is_active','eq',true],['role','eq','cast']],order:'created_at.asc'});
-  if(data&&data.length) demoCasts=data;
+  if(data&&data.length){
+    // SupabaseのデータにlocalストアのドリンクBK個別設定をマージ
+    demoCasts=data.map(c=>({...c,...(castBackSettings[c.id]||{})}));
+  }
 }
 function castToSBPayload(cast){
   // Supabaseのcastsテーブルに存在するカラムのみ送信
