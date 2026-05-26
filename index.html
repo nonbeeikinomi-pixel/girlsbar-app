@@ -2032,7 +2032,10 @@ async function saveWage(){
     lsSet('gb_castBackSettings',castBackSettings);
     await sbSaveCast(c);
   }
-  hide('editWagePanel');loadCastList();toast('✅ 給与設定を保存しました');
+  hide('editWagePanel');loadCastList();
+  if(typeof loadAdminCast==='function')loadAdminCast();
+  if(typeof loadAdminHome==='function')loadAdminHome();
+  toast('✅ 給与設定を保存しました');
 }
 async function addCast(){
   const name=v('newName').trim();
@@ -3991,11 +3994,18 @@ const DRINK_STEPS=[
   {min:200,max:Infinity, rate:30}
 ];
 
-function getDrinkBackRate(totalCups){
-  return (DRINK_STEPS.find(s=>totalCups>=s.min&&totalCups<=s.max)||DRINK_STEPS[0]).rate;
+function getCastTiers(cast){
+  if(cast&&cast.use_tiered_back&&cast.custom_drink_tiers&&cast.custom_drink_tiers.length)
+    return cast.custom_drink_tiers;
+  return DRINK_STEPS;
 }
-function getNextDrinkStep(totalCups){
-  return DRINK_STEPS.find(s=>s.min>totalCups)||null;
+function getDrinkBackRate(totalCups,cast){
+  const steps=getCastTiers(cast);
+  return (steps.find(s=>totalCups>=s.min&&totalCups<=(s.max==null||s.max===Infinity?Infinity:s.max))||steps[steps.length-1]||{rate:0}).rate;
+}
+function getNextDrinkStep(totalCups,cast){
+  const steps=getCastTiers(cast);
+  return steps.find(s=>s.min>totalCups)||null;
 }
 
 // ── 月間ドリンク杯数（S+M+L+ショット、ボトル除く）──
@@ -4035,13 +4045,14 @@ loadDashboard=function(){
   const cast=demoCasts.find(c=>c.id===currentUser.id)||{};
   const m=month();
   const cups=calcMonthlyDrinkCups(currentUser.id,m);
-  const rate=getDrinkBackRate(cups);
-  const nextStep=getNextDrinkStep(cups);
+  const rate=getDrinkBackRate(cups,cast);
+  const nextStep=getNextDrinkStep(cups,cast);
   const shifts=demoReports.filter(r=>r.cast_id===currentUser.id&&r.report_date.startsWith(m)).length;
   const alert=getAttendanceAlert(cast,shifts);
   const cfg=MEMBER_CONFIG[cast.member_type||'semi'];
-  const stepPct=nextStep?Math.round((cups-DRINK_STEPS.find(s=>s.max>=cups&&s.min<=cups).min)/
-    (nextStep.min-DRINK_STEPS.find(s=>s.max>=cups&&s.min<=cups).min)*100):100;
+  const castTiers_=getCastTiers(cast);
+  const curStep_=castTiers_.find(s=>cups>=s.min&&cups<=(s.max==null||s.max===Infinity?Infinity:s.max))||castTiers_[0]||{min:0};
+  const stepPct=nextStep?Math.round((cups-curStep_.min)/(nextStep.min-curStep_.min)*100):100;
 
   const el=document.getElementById('dashInner');
   if(!el)return;
@@ -4094,8 +4105,8 @@ loadAdminCast=function(){
   const alertRows=activeCasts.map(c=>{
     const shifts=demoReports.filter(r=>r.cast_id===c.id&&r.report_date.startsWith(m)).length;
     const cups=calcMonthlyDrinkCups(c.id,m);
-    const rate=getDrinkBackRate(cups);
-    const nextStep=getNextDrinkStep(cups);
+    const rate=getDrinkBackRate(cups,c);
+    const nextStep=getNextDrinkStep(cups,c);
     const alert=getAttendanceAlert(c,shifts);
     const avgCups=shifts>0?Math.round(cups/shifts):0;
     return {c,shifts,cups,rate,nextStep,alert,avgCups};
@@ -4773,8 +4784,16 @@ function openSignModal(contractType){
   const tpl=contractTemplates.find(function(t){return t.contract_type===contractType&&t.status==='active';});
   if(!tpl){toast('有効な契約テンプレートがありません');return;}
   const cast=demoCasts.find(function(c){return c.id===currentUser.id;})||{};
-  const tiers=drinkBackTiers.filter(function(t){return t.is_active;}).sort(function(a,b){return a.min_count-b.min_count;});
-  const tierText=tiers.map(function(t){return t.min_count+'~'+(t.max_count||'')+'杯：'+t.back_rate+'%';}).join(' / ');
+  let tierText;
+  if(cast.use_tiered_back){
+    const castTiers=getCastTiers(cast);
+    tierText=castTiers.map(function(t){return t.min+'~'+(t.max===Infinity||t.max==null?'':t.max)+'杯：'+t.rate+'%';}).join(' / ');
+  } else if(cast.drink_back_s||cast.drink_back_m||cast.drink_back_l){
+    tierText='S'+yen(cast.drink_back_s||0)+' M'+yen(cast.drink_back_m||0)+' L'+yen(cast.drink_back_l||0)+'/杯（固定）';
+  } else {
+    const storeTiers=drinkBackTiers.filter(function(t){return t.is_active;}).sort(function(a,b){return a.min_count-b.min_count;});
+    tierText=storeTiers.map(function(t){return t.min_count+'~'+(t.max_count||'')+'杯：'+t.back_rate+'%';}).join(' / ');
+  }
   const customBody=castContractBodies[currentUser.id]&&castContractBodies[currentUser.id][contractType];
   let body=(customBody||tpl.body)
     .replace(/\{\{cast_name\}\}/g,cast.name||'')
