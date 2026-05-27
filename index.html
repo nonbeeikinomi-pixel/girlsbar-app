@@ -592,6 +592,30 @@ td{padding:9px;border-bottom:1px solid var(--border);white-space:nowrap}
       <div class="title">📋 LINE用テキスト</div>
       <div id="smLineText" class="line-copy-box"></div>
     </div>
+
+    <!-- 勤怠記録 -->
+    <div class="card" style="margin-top:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:6px;">
+        <div class="title" style="margin:0;">📋 勤怠記録（遅刻・欠勤・シフト変更）</div>
+        <button class="btn primary small" onclick="openAttendanceModal()">＋ 記録を追加</button>
+      </div>
+      <!-- キャスト別サマリー -->
+      <div id="attendanceSummary" style="margin-bottom:10px;"></div>
+      <!-- フィルター -->
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
+        <select id="atFilterCast" class="inp" style="flex:1;min-width:100px;padding:6px;" onchange="renderAttendanceHistory()">
+          <option value="">全キャスト</option>
+        </select>
+        <select id="atFilterType" class="inp" style="flex:1;min-width:100px;padding:6px;" onchange="renderAttendanceHistory()">
+          <option value="">全種別</option>
+          <option value="late">遅刻</option>
+          <option value="absent">欠勤</option>
+          <option value="shift_change">シフト変更</option>
+        </select>
+      </div>
+      <!-- 履歴一覧 -->
+      <div id="attendanceHistory"></div>
+    </div>
   </div>
 
   <!-- ===== 管理者 契約管理 ===== -->
@@ -885,6 +909,7 @@ storeConfig       = lsGet('gb_storeConfig',storeConfig);
 // キャスト個別のドリンクBK設定（Supabaseに列がない項目をlocalStorageで管理）
 let castBackSettings = lsGet('gb_castBackSettings', {});
 let storeDailyCustomers = lsGet('gb_dailyCustomers', {});
+let attendanceEvents = [];
 
 // ── デモ保存関数（全データをlocalStorageに書き出す）──
 function saveDemoData(){
@@ -1195,6 +1220,7 @@ async function afterLogin(){
     loadAllGoals(),
     loadStoreDailyReports(),
     loadStoreDailyCustomers(),
+    sbLoadAttendanceEvents(),
     loadBottleMasters(),
     loadStoreConfig(),
     loadPayRecords(),
@@ -2430,6 +2456,199 @@ async function sbSaveStoreDailyReport(report){
   return await SB.upsert('store_daily_reports',{...report,updated_at:new Date().toISOString()},'report_date');
 }
 
+// 勤怠記録（attendance_events）
+async function sbLoadAttendanceEvents(){
+  if(isDemo())return;
+  const{data}=await SB.get('attendance_events',{order:'event_date.desc'});
+  if(data) attendanceEvents=data;
+}
+async function sbSaveAttendanceEvent(ev){
+  if(isDemo()){attendanceEvents.unshift(ev);return{data:ev};}
+  const res=await SB.post('attendance_events',ev);
+  if(res.data&&res.data[0]) attendanceEvents.unshift(res.data[0]);
+  return res;
+}
+async function sbDeleteAttendanceEvent(id){
+  if(isDemo()){attendanceEvents=attendanceEvents.filter(e=>e.id!==id);return;}
+  await SB.delete('attendance_events',[['id','eq',id]]);
+  attendanceEvents=attendanceEvents.filter(e=>e.id!==id);
+}
+async function sbToggleAttendanceDoc(id,val){
+  if(isDemo()){const e=attendanceEvents.find(x=>x.id===id);if(e)e.has_document=val;return;}
+  await SB.patch('attendance_events',[['id','eq',id]],{has_document:val});
+  const e=attendanceEvents.find(x=>x.id===id);if(e)e.has_document=val;
+}
+
+const AT_TYPE_LABEL={late:'遅刻',absent:'欠勤',shift_change:'シフト変更'};
+const AT_TYPE_COLOR={late:'#f59e0b',absent:'#ef4444',shift_change:'#3b82f6'};
+const AT_REASON_LABEL={sick:'病欠',bereavement:'忌引き',no_show:'無断欠勤',other:'その他'};
+
+function openAttendanceModal(prefillCastId,prefillDate){
+  let m=document.getElementById('attendanceModal');if(m)m.remove();
+  m=document.createElement('div');m.id='attendanceModal';
+  m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto;';
+  const castOpts=demoCasts.filter(c=>c.is_active&&c.role!=='admin')
+    .map(c=>`<option value="${c.id}"${prefillCastId===c.id?' selected':''}>${escapeHtml(c.name)}</option>`).join('');
+  m.innerHTML=`<div style="background:#fff;border-radius:16px;padding:20px;width:100%;max-width:480px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <div style="font-size:15px;font-weight:800;color:var(--pink);">📋 勤怠記録を追加</div>
+      <button class="btn outline small" onclick="document.getElementById('attendanceModal').remove()">✕</button>
+    </div>
+    <div class="fg"><label class="label">キャスト</label>
+      <select id="atCast" class="inp">${castOpts}</select></div>
+    <div class="fg"><label class="label">日付</label>
+      <input id="atDate" class="inp" type="date" value="${prefillDate||today()}"></div>
+    <div class="fg"><label class="label">種別</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <label style="display:flex;align-items:center;gap:4px;font-size:13px;"><input type="radio" name="atType" value="late" onchange="updateAtFields()" checked> 遅刻</label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:13px;"><input type="radio" name="atType" value="absent" onchange="updateAtFields()"> 欠勤</label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:13px;"><input type="radio" name="atType" value="shift_change" onchange="updateAtFields()"> シフト変更</label>
+      </div>
+    </div>
+    <!-- 遅刻フィールド -->
+    <div id="atFieldsLate">
+      <div class="fg"><label class="label">遅刻時間（分）</label>
+        <input id="atMinutes" class="inp" type="number" min="1" placeholder="例: 30"></div>
+    </div>
+    <!-- 欠勤フィールド -->
+    <div id="atFieldsAbsent" style="display:none;">
+      <div class="fg"><label class="label">理由</label>
+        <select id="atReason" class="inp" onchange="updateAtDocField()">
+          <option value="sick">病欠</option>
+          <option value="bereavement">忌引き</option>
+          <option value="no_show">無断欠勤</option>
+          <option value="other">その他</option>
+        </select>
+      </div>
+      <div id="atDocField" class="fg">
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+          <input type="checkbox" id="atHasDoc"> 書類提出あり（診断書・会葬礼状など）
+        </label>
+      </div>
+    </div>
+    <!-- シフト変更フィールド -->
+    <div id="atFieldsShift" style="display:none;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div class="fg"><label class="label">変更前</label>
+          <input id="atOldShift" class="inp" placeholder="例: 20:00〜24:00"></div>
+        <div class="fg"><label class="label">変更後</label>
+          <input id="atNewShift" class="inp" placeholder="例: 21:00〜25:00"></div>
+      </div>
+    </div>
+    <div class="fg"><label class="label">メモ</label>
+      <textarea id="atMemo" class="inp" style="min-height:60px;" placeholder="備考・経緯など"></textarea></div>
+    <button class="btn primary full" onclick="saveAttendanceEvent()">保存</button>
+  </div>`;
+  document.body.appendChild(m);
+}
+function updateAtFields(){
+  const t=document.querySelector('input[name="atType"]:checked')?.value||'late';
+  document.getElementById('atFieldsLate').style.display=t==='late'?'':'none';
+  document.getElementById('atFieldsAbsent').style.display=t==='absent'?'':'none';
+  document.getElementById('atFieldsShift').style.display=t==='shift_change'?'':'none';
+}
+function updateAtDocField(){
+  const r=v('atReason');
+  document.getElementById('atDocField').style.display=(r==='sick'||r==='bereavement')?'':'none';
+}
+async function saveAttendanceEvent(){
+  const castId=v('atCast');const date=v('atDate');
+  if(!castId||!date){toast('❌ キャストと日付は必須です');return;}
+  const type=document.querySelector('input[name="atType"]:checked')?.value||'late';
+  const ev={
+    cast_id:castId, event_date:date, event_type:type,
+    reason_type:type==='absent'?v('atReason'):null,
+    minutes_late:type==='late'?Number(v('atMinutes')||0):null,
+    has_document:type==='absent'?(document.getElementById('atHasDoc')?.checked||false):false,
+    old_shift:type==='shift_change'?v('atOldShift'):null,
+    new_shift:type==='shift_change'?v('atNewShift'):null,
+    memo:v('atMemo')||null
+  };
+  const res=await sbSaveAttendanceEvent(ev);
+  if(res&&res.error){toast('❌ 保存失敗: '+(res.error.message||''));return;}
+  document.getElementById('attendanceModal')?.remove();
+  renderAttendanceSummary();renderAttendanceHistory();
+  toast('✅ 勤怠記録を保存しました');
+}
+async function deleteAttendanceEvent(id){
+  if(!confirm('この記録を削除しますか？'))return;
+  await sbDeleteAttendanceEvent(id);
+  renderAttendanceSummary();renderAttendanceHistory();
+  toast('🗑️ 削除しました');
+}
+async function toggleAttendanceDoc(id,checked){
+  await sbToggleAttendanceDoc(id,checked);
+  renderAttendanceHistory();
+  toast(checked?'✅ 書類提出済みにしました':'書類提出済みを解除しました');
+}
+function renderAttendanceSummary(){
+  const el=document.getElementById('attendanceSummary');if(!el)return;
+  const casts=demoCasts.filter(c=>c.is_active&&c.role!=='admin');
+  const rows=casts.map(c=>{
+    const evs=attendanceEvents.filter(e=>e.cast_id===c.id);
+    const late=evs.filter(e=>e.event_type==='late').length;
+    const absent=evs.filter(e=>e.event_type==='absent').length;
+    const noDoc=evs.filter(e=>e.event_type==='absent'&&(e.reason_type==='sick'||e.reason_type==='bereavement')&&!e.has_document).length;
+    const shift=evs.filter(e=>e.event_type==='shift_change').length;
+    if(!late&&!absent&&!shift)return'';
+    return`<div style="display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;">
+      <span style="font-weight:800;min-width:64px;font-size:13px;">${escapeHtml(c.name)}</span>
+      ${late?`<span style="background:#fef3c7;color:#92400e;border-radius:6px;padding:2px 7px;font-size:11px;font-weight:700;">遅刻 ${late}回</span>`:''}
+      ${absent?`<span style="background:#fee2e2;color:#991b1b;border-radius:6px;padding:2px 7px;font-size:11px;font-weight:700;">欠勤 ${absent}回</span>`:''}
+      ${noDoc?`<span style="background:#ef4444;color:#fff;border-radius:6px;padding:2px 7px;font-size:11px;font-weight:700;">⚠️ 書類未提出 ${noDoc}件</span>`:''}
+      ${shift?`<span style="background:#dbeafe;color:#1e40af;border-radius:6px;padding:2px 7px;font-size:11px;font-weight:700;">変更 ${shift}回</span>`:''}
+    </div>`;
+  }).join('');
+  el.innerHTML=rows||'<p style="font-size:12px;color:var(--muted);">記録はありません</p>';
+}
+function renderAttendanceHistory(){
+  const el=document.getElementById('attendanceHistory');if(!el)return;
+  // フィルターセレクトのキャスト選択肢を更新
+  const fc=document.getElementById('atFilterCast');
+  if(fc&&fc.options.length<=1){
+    demoCasts.filter(c=>c.is_active&&c.role!=='admin').forEach(c=>{
+      const o=document.createElement('option');o.value=c.id;o.textContent=c.name;fc.appendChild(o);
+    });
+  }
+  const filterCast=v('atFilterCast')||'';
+  const filterType=v('atFilterType')||'';
+  let evs=[...attendanceEvents];
+  if(filterCast)evs=evs.filter(e=>e.cast_id===filterCast);
+  if(filterType)evs=evs.filter(e=>e.event_type===filterType);
+  if(!evs.length){el.innerHTML='<p style="font-size:12px;color:var(--muted);">該当する記録はありません</p>';return;}
+  el.innerHTML=evs.map(e=>{
+    const cast=demoCasts.find(c=>c.id===e.cast_id);
+    const typeColor=AT_TYPE_COLOR[e.event_type]||'#888';
+    const typeLabel=AT_TYPE_LABEL[e.event_type]||e.event_type;
+    const needDoc=e.event_type==='absent'&&(e.reason_type==='sick'||e.reason_type==='bereavement');
+    const docBadge=needDoc
+      ?(e.has_document
+        ?'<span style="background:#dcfce7;color:#166534;border-radius:5px;padding:1px 6px;font-size:10px;font-weight:700;">書類✅</span>'
+        :'<span style="background:#fee2e2;color:#991b1b;border-radius:5px;padding:1px 6px;font-size:10px;font-weight:700;">書類未提出⚠️</span>')
+      :'';
+    const detail=e.event_type==='late'&&e.minutes_late
+      ?`<span style="font-size:11px;color:var(--muted);">${e.minutes_late}分遅刻</span>`
+      :e.event_type==='absent'&&e.reason_type
+      ?`<span style="font-size:11px;color:var(--muted);">${AT_REASON_LABEL[e.reason_type]||e.reason_type}</span>`
+      :e.event_type==='shift_change'&&(e.old_shift||e.new_shift)
+      ?`<span style="font-size:11px;color:var(--muted);">${escapeHtml(e.old_shift||'')}→${escapeHtml(e.new_shift||'')}</span>`
+      :'';
+    const docToggle=needDoc?`<label style="display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;margin-top:4px;">
+      <input type="checkbox" ${e.has_document?'checked':''} onchange="toggleAttendanceDoc('${e.id}',this.checked)"> 書類提出済み</label>`:'';
+    return`<div style="padding:10px 0;border-bottom:1px solid var(--border);">
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+        <span style="font-size:11px;color:var(--muted);min-width:80px;">${e.event_date}</span>
+        <span style="font-weight:800;font-size:13px;">${escapeHtml(cast?.name||'—')}</span>
+        <span style="background:${typeColor}20;color:${typeColor};border-radius:6px;padding:2px 7px;font-size:11px;font-weight:700;">${typeLabel}</span>
+        ${detail} ${docBadge}
+        <button class="btn danger small" style="margin-left:auto;padding:2px 8px;font-size:11px;" onclick="deleteAttendanceEvent('${e.id}')">削除</button>
+      </div>
+      ${e.memo?`<div style="font-size:11px;color:var(--muted);margin-top:4px;padding-left:86px;">${escapeHtml(e.memo)}</div>`:''}
+      ${docToggle}
+    </div>`;
+  }).join('');
+}
+
 // 客数（store_daily_records）
 async function sbLoadStoreDailyCustomers(m){
   if(isDemo())return;
@@ -3594,6 +3813,8 @@ function loadShiftMgmt(){
   renderSmDailyCards(m);
   renderSmConfirmedList(m);
   renderSmChangeRequests(m);
+  renderAttendanceSummary();
+  renderAttendanceHistory();
 }
 function smSelectPeriod(p){
   smCurrentPeriod=p;
