@@ -967,6 +967,15 @@ td{padding:9px;border-bottom:1px solid var(--border);white-space:nowrap}
 
   <!-- ===== キャスト 営業支援 ===== -->
   <div class="page hidden" id="pgCastSales">
+    <!-- アクションボタン群 -->
+    <div class="card" style="padding:12px;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn primary small" onclick="openCustomerModal(null,currentUser?.id)">＋ 顧客追加</button>
+        <button class="btn primary small" onclick="openVisitModal(null,currentUser?.id)">＋ 来店記録</button>
+        <button class="btn outline small" onclick="openCastVisitPlanModal()">＋ 来店予定</button>
+        <button class="btn outline small" onclick="openCastMemoModal()">＋ 営業メモ</button>
+      </div>
+    </div>
     <div class="card">
       <div class="title">📌 今日やること</div>
       <div id="castTodayTasks"></div>
@@ -5608,6 +5617,19 @@ function saveRulePdfUrl(){
 // 営業支援機能
 // ================================================================
 
+// ── エラーメッセージ整形 ──
+function formatSBError(error){
+  if(!error) return '不明なエラー';
+  const msg = error.message || JSON.stringify(error);
+  if(msg.includes('permission') || msg.includes('policy') || msg.includes('RLS') || msg.includes('42501'))
+    return 'Supabaseの保存権限がありません（RLSポリシー）';
+  if(msg.includes('network') || msg.includes('fetch'))
+    return '通信エラーが発生しました';
+  if(msg.includes('null value') || msg.includes('not-null'))
+    return '必須項目が未入力です';
+  return msg;
+}
+
 // グローバル変数
 let customers = [];
 let visits = [];
@@ -5653,10 +5675,9 @@ function getVisibleCustomers(){
 // ================================================================
 async function sbLoadCustomers(){
   if(isDemo()){customers=lsGet('gb_customers',[]);return;}
-  try{
-    const res=await SB.get('customers?order=name');
-    customers=res||[];
-  }catch(e){console.error('sbLoadCustomers',e);}
+  const{data,error}=await SB.get('customers',{order:'name'});
+  if(error)toast('❌ 顧客データ読み込み失敗: '+formatSBError(error));
+  else customers=data||[];
 }
 
 async function sbSaveCustomer(c){
@@ -5674,24 +5695,26 @@ async function sbSaveCustomer(c){
     lsSet('gb_customers',customers);
     return c;
   }
-  try{
+  {
     const payload={...c};
     delete payload.id;
     if(c.id){
-      const res=await SB.patch('customers?id=eq.'+c.id,payload);
-      const updated=(res&&res[0])||{...customers.find(x=>x.id===c.id)||{},...payload,id:c.id};
+      const{data,error}=await SB.patch('customers',[['id','eq',c.id]],payload);
+      if(error){toast('❌ 顧客保存失敗: '+formatSBError(error));return;}
+      const updated=(Array.isArray(data)&&data[0])||{...customers.find(x=>x.id===c.id)||{},...payload,id:c.id};
       const i=customers.findIndex(x=>x.id===c.id);
       if(i>=0)customers[i]=updated;
       return updated;
     }else{
       payload.created_at=new Date().toISOString();
       payload.visit_count=0;payload.total_sales=0;payload.is_active=true;
-      const res=await SB.post('customers',payload);
-      const created=(res&&res[0])||{...payload,id:'new_'+Date.now()};
+      const{data,error}=await SB.post('customers',payload);
+      if(error){toast('❌ 顧客保存失敗: '+formatSBError(error));return;}
+      const created=(Array.isArray(data)&&data[0])||{...payload,id:'new_'+Date.now()};
       customers.push(created);
       return created;
     }
-  }catch(e){toast('⚠️ 顧客保存エラー');console.error(e);}
+  }
 }
 
 async function sbDeleteCustomer(id){
@@ -5700,8 +5723,8 @@ async function sbDeleteCustomer(id){
     lsSet('gb_customers',customers);
     return;
   }
-  try{await SB.delete('customers?id=eq.'+id);}
-  catch(e){toast('⚠️ 削除エラー');console.error(e);}
+  const{error}=await SB.delete('customers',[['id','eq',id]]);
+  if(error){toast('❌ 顧客削除失敗: '+formatSBError(error));return;}
   customers=customers.filter(c=>c.id!==id);
 }
 
@@ -5710,10 +5733,9 @@ async function sbDeleteCustomer(id){
 // ================================================================
 async function sbLoadVisits(){
   if(isDemo()){visits=lsGet('gb_visits',[]);return;}
-  try{
-    const res=await SB.get('visits?order=visit_date.desc');
-    visits=res||[];
-  }catch(e){console.error('sbLoadVisits',e);}
+  const{data,error}=await SB.get('visits',{order:'visit_date.desc'});
+  if(error)toast('❌ 来店記録読み込み失敗: '+formatSBError(error));
+  else visits=data||[];
 }
 
 async function sbSaveVisit(v){
@@ -5730,23 +5752,25 @@ async function sbSaveVisit(v){
     lsSet('gb_visits',visits);
     return v;
   }
-  try{
+  {
     const payload={...v};
     delete payload.id;
     if(v.id){
-      const res=await SB.patch('visits?id=eq.'+v.id,payload);
-      const updated=(res&&res[0])||{...visits.find(x=>x.id===v.id)||{},...payload,id:v.id};
+      const{data,error}=await SB.patch('visits',[['id','eq',v.id]],payload);
+      if(error){toast('❌ 来店記録保存失敗: '+formatSBError(error));return;}
+      const updated=(Array.isArray(data)&&data[0])||{...visits.find(x=>x.id===v.id)||{},...payload,id:v.id};
       const i=visits.findIndex(x=>x.id===v.id);
       if(i>=0)visits[i]=updated;
       return updated;
     }else{
       payload.created_at=new Date().toISOString();
-      const res=await SB.post('visits',payload);
-      const created=(res&&res[0])||{...payload,id:'new_'+Date.now()};
+      const{data,error}=await SB.post('visits',payload);
+      if(error){toast('❌ 来店記録保存失敗: '+formatSBError(error));return;}
+      const created=(Array.isArray(data)&&data[0])||{...payload,id:'new_'+Date.now()};
       visits.push(created);
       return created;
     }
-  }catch(e){toast('⚠️ 来店記録保存エラー');console.error(e);}
+  }
 }
 
 async function sbDeleteVisit(id){
@@ -5755,8 +5779,8 @@ async function sbDeleteVisit(id){
     lsSet('gb_visits',visits);
     return;
   }
-  try{await SB.delete('visits?id=eq.'+id);}
-  catch(e){toast('⚠️ 削除エラー');console.error(e);}
+  const{error}=await SB.delete('visits',[['id','eq',id]]);
+  if(error){toast('❌ 来店記録削除失敗: '+formatSBError(error));return;}
   visits=visits.filter(v=>v.id!==id);
 }
 
@@ -5770,8 +5794,8 @@ async function sbUpdateCustomerStats(customerId){
   const i=customers.findIndex(c=>c.id===customerId);
   if(i>=0)customers[i]={...customers[i],...patch};
   if(isDemo()){lsSet('gb_customers',customers);return;}
-  try{await SB.patch('customers?id=eq.'+customerId,patch);}
-  catch(e){console.error('sbUpdateCustomerStats',e);}
+  const{error}=await SB.patch('customers',[['id','eq',customerId]],patch);
+  if(error)console.error('sbUpdateCustomerStats',formatSBError(error));
 }
 
 // ================================================================
@@ -5779,10 +5803,9 @@ async function sbUpdateCustomerStats(customerId){
 // ================================================================
 async function sbLoadTasks(){
   if(isDemo()){customerTasks=lsGet('gb_customer_tasks',[]);return;}
-  try{
-    const res=await SB.get('customer_tasks?order=due_date');
-    customerTasks=res||[];
-  }catch(e){console.error('sbLoadTasks',e);}
+  const{data,error}=await SB.get('customer_tasks',{order:'due_date'});
+  if(error)toast('❌ タスク読み込み失敗: '+formatSBError(error));
+  else customerTasks=data||[];
 }
 
 async function sbSaveTask(t){
@@ -5799,23 +5822,25 @@ async function sbSaveTask(t){
     lsSet('gb_customer_tasks',customerTasks);
     return t;
   }
-  try{
+  {
     const payload={...t};
     delete payload.id;
     if(t.id){
-      const res=await SB.patch('customer_tasks?id=eq.'+t.id,payload);
-      const updated=(res&&res[0])||{...customerTasks.find(x=>x.id===t.id)||{},...payload,id:t.id};
+      const{data,error}=await SB.patch('customer_tasks',[['id','eq',t.id]],payload);
+      if(error){toast('❌ タスク保存失敗: '+formatSBError(error));return;}
+      const updated=(Array.isArray(data)&&data[0])||{...customerTasks.find(x=>x.id===t.id)||{},...payload,id:t.id};
       const i=customerTasks.findIndex(x=>x.id===t.id);
       if(i>=0)customerTasks[i]=updated;
       return updated;
     }else{
       payload.created_at=new Date().toISOString();
-      const res=await SB.post('customer_tasks',payload);
-      const created=(res&&res[0])||{...payload,id:'new_'+Date.now()};
+      const{data,error}=await SB.post('customer_tasks',payload);
+      if(error){toast('❌ タスク保存失敗: '+formatSBError(error));return;}
+      const created=(Array.isArray(data)&&data[0])||{...payload,id:'new_'+Date.now()};
       customerTasks.push(created);
       return created;
     }
-  }catch(e){toast('⚠️ タスク保存エラー');console.error(e);}
+  }
 }
 
 async function sbToggleTask(id, done){
@@ -5823,8 +5848,8 @@ async function sbToggleTask(id, done){
   if(!t)return;
   t.is_done=done;
   if(isDemo()){lsSet('gb_customer_tasks',customerTasks);return;}
-  try{await SB.patch('customer_tasks?id=eq.'+id,{is_done:done});}
-  catch(e){console.error('sbToggleTask',e);}
+  const{error}=await SB.patch('customer_tasks',[['id','eq',id]],{is_done:done});
+  if(error)console.error('sbToggleTask',formatSBError(error));
 }
 
 async function sbDeleteTask(id){
@@ -5833,8 +5858,8 @@ async function sbDeleteTask(id){
     lsSet('gb_customer_tasks',customerTasks);
     return;
   }
-  try{await SB.delete('customer_tasks?id=eq.'+id);}
-  catch(e){toast('⚠️ タスク削除エラー');console.error(e);}
+  const{error}=await SB.delete('customer_tasks',[['id','eq',id]]);
+  if(error){toast('❌ タスク削除失敗: '+formatSBError(error));return;}
   customerTasks=customerTasks.filter(t=>t.id!==id);
 }
 
@@ -5843,10 +5868,9 @@ async function sbDeleteTask(id){
 // ================================================================
 async function sbLoadCalendarEvents(){
   if(isDemo()){calendarEvents=lsGet('gb_calendar_events',[]);return;}
-  try{
-    const res=await SB.get('calendar_events?order=event_date');
-    calendarEvents=res||[];
-  }catch(e){console.error('sbLoadCalendarEvents',e);}
+  const{data,error}=await SB.get('calendar_events',{order:'event_date'});
+  if(error)toast('❌ カレンダー読み込み失敗: '+formatSBError(error));
+  else calendarEvents=data||[];
 }
 
 async function sbSaveCalendarEvent(e){
@@ -5863,23 +5887,25 @@ async function sbSaveCalendarEvent(e){
     lsSet('gb_calendar_events',calendarEvents);
     return e;
   }
-  try{
+  {
     const payload={...e};
     delete payload.id;
     if(e.id){
-      const res=await SB.patch('calendar_events?id=eq.'+e.id,payload);
-      const updated=(res&&res[0])||{...calendarEvents.find(x=>x.id===e.id)||{},...payload,id:e.id};
+      const{data,error}=await SB.patch('calendar_events',[['id','eq',e.id]],payload);
+      if(error){toast('❌ カレンダー保存失敗: '+formatSBError(error));return;}
+      const updated=(Array.isArray(data)&&data[0])||{...calendarEvents.find(x=>x.id===e.id)||{},...payload,id:e.id};
       const i=calendarEvents.findIndex(x=>x.id===e.id);
       if(i>=0)calendarEvents[i]=updated;
       return updated;
     }else{
       payload.created_at=new Date().toISOString();
-      const res=await SB.post('calendar_events',payload);
-      const created=(res&&res[0])||{...payload,id:'new_'+Date.now()};
+      const{data,error}=await SB.post('calendar_events',payload);
+      if(error){toast('❌ カレンダー保存失敗: '+formatSBError(error));return;}
+      const created=(Array.isArray(data)&&data[0])||{...payload,id:'new_'+Date.now()};
       calendarEvents.push(created);
       return created;
     }
-  }catch(e2){toast('⚠️ カレンダー保存エラー');console.error(e2);}
+  }
 }
 
 async function sbDeleteCalendarEvent(id){
@@ -5888,8 +5914,8 @@ async function sbDeleteCalendarEvent(id){
     lsSet('gb_calendar_events',calendarEvents);
     return;
   }
-  try{await SB.delete('calendar_events?id=eq.'+id);}
-  catch(e){toast('⚠️ 削除エラー');console.error(e);}
+  const{error}=await SB.delete('calendar_events',[['id','eq',id]]);
+  if(error){toast('❌ カレンダー削除失敗: '+formatSBError(error));return;}
   calendarEvents=calendarEvents.filter(e=>e.id!==id);
 }
 
@@ -6042,12 +6068,18 @@ function renderCustomerList(){
 // ================================================================
 // 顧客追加/編集モーダル
 // ================================================================
-function openCustomerModal(custId){
+function openCustomerModal(custId, prefillCastId){
   const c=custId?customers.find(x=>x.id===custId):null;
+  // prefillCastId が指定された場合はキャスト側から呼ばれているので担当キャスト欄を固定
+  const fixedCastId=prefillCastId||(c&&c.primary_cast_id)||'';
+  const castLocked=!!prefillCastId;
   let m=document.getElementById('customerModal');if(m)m.remove();
   m=document.createElement('div');m.id='customerModal';
   m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:20px;';
-  const castOpts=demoCasts.filter(x=>x.role!=='admin'&&x.is_active).map(x=>`<option value="${x.id}"${c&&c.primary_cast_id===x.id?' selected':''}>${escapeHtml(x.name)}</option>`).join('');
+  const castOpts=demoCasts.filter(x=>x.role!=='admin'&&x.is_active).map(x=>`<option value="${x.id}"${fixedCastId===x.id?' selected':''}>${escapeHtml(x.name)}</option>`).join('');
+  const castField=castLocked
+    ? `<input type="hidden" id="cmCast" value="${escapeHtml(fixedCastId)}"><div style="font-size:13px;color:var(--muted);">担当: ${escapeHtml(castNameById(fixedCastId))}</div>`
+    : `<select id="cmCast" class="inp"><option value="">未設定</option>${castOpts}</select>`;
   m.innerHTML=`<div style="background:#fff;border-radius:16px;padding:20px;max-width:540px;width:100%;margin:auto;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
       <div style="font-size:15px;font-weight:800;color:var(--pink);">${c?'顧客編集':'顧客追加'}</div>
@@ -6067,7 +6099,7 @@ function openCustomerModal(custId){
     <div class="fg"><label class="label">NGな話題</label><input id="cmNg" class="inp" value="${escapeHtml(c?.ng_items||'')}"></div>
     <div class="grid2">
       <div class="fg"><label class="label">誕生日 (MM-DD)</label><input id="cmBday" class="inp" placeholder="04-15" value="${escapeHtml(c?.birthday||'')}"></div>
-      <div class="fg"><label class="label">担当キャスト</label><select id="cmCast" class="inp"><option value="">未設定</option>${castOpts}</select></div>
+      <div class="fg"><label class="label">担当キャスト</label>${castField}</div>
     </div>
     <div class="fg"><label class="label">次回来店予定</label><input id="cmNextVisit" type="date" class="inp" value="${escapeHtml(c?.next_visit_date||'')}"></div>
     <div class="fg"><label class="label">メモ</label><textarea id="cmMemo" class="inp">${escapeHtml(c?.memo||'')}</textarea></div>
@@ -6147,13 +6179,19 @@ function renderVisitList(){
 // ================================================================
 // 来店記録モーダル
 // ================================================================
-function openVisitModal(visitId){
+function openVisitModal(visitId, prefillCastId){
   const vi=visitId?visits.find(x=>x.id===visitId):null;
+  // prefillCastId が指定された場合はキャスト側から呼ばれているので担当キャスト欄を固定
+  const fixedCastId=prefillCastId||(vi&&vi.cast_id)||'';
+  const castLocked=!!prefillCastId;
   let m=document.getElementById('visitModal');if(m)m.remove();
   m=document.createElement('div');m.id='visitModal';
   m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:20px;';
   const custOpts=getVisibleCustomers().map(c=>`<option value="${c.id}"${vi&&vi.customer_id===c.id?' selected':''}>${escapeHtml(c.name)}</option>`).join('');
-  const castOpts=demoCasts.filter(x=>x.role!=='admin'&&x.is_active).map(x=>`<option value="${x.id}"${vi&&vi.cast_id===x.id?' selected':''}>${escapeHtml(x.name)}</option>`).join('');
+  const castOpts=demoCasts.filter(x=>x.role!=='admin'&&x.is_active).map(x=>`<option value="${x.id}"${fixedCastId===x.id?' selected':''}>${escapeHtml(x.name)}</option>`).join('');
+  const castField=castLocked
+    ? `<input type="hidden" id="vmCast" value="${escapeHtml(fixedCastId)}"><div style="font-size:13px;color:var(--muted);">担当: ${escapeHtml(castNameById(fixedCastId))}</div>`
+    : `<select id="vmCast" class="inp"><option value="">未設定</option>${castOpts}</select>`;
   m.innerHTML=`<div style="background:#fff;border-radius:16px;padding:20px;max-width:540px;width:100%;margin:auto;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
       <div style="font-size:15px;font-weight:800;color:var(--pink);">${vi?'来店記録編集':'来店記録追加'}</div>
@@ -6171,8 +6209,7 @@ function openVisitModal(visitId){
           <option value="dohan"${vi?.visit_type==='dohan'?' selected':''}>同伴</option>
         </select></div>
     </div>
-    <div class="fg"><label class="label">担当キャスト</label>
-      <select id="vmCast" class="inp"><option value="">未設定</option>${castOpts}</select></div>
+    <div class="fg"><label class="label">担当キャスト</label>${castField}</div>
     <div class="grid3">
       <div class="fg"><label class="label">売上（円）</label><input id="vmSales" type="number" class="inp" value="${vi?.sales_amount||0}"></div>
       <div class="fg"><label class="label">ドリンク数</label><input id="vmDrinks" type="number" class="inp" value="${vi?.drink_count||0}"></div>
@@ -6510,6 +6547,105 @@ function loadSalesPage(){
 }
 
 // ================================================================
+// キャスト側: 来店予定・営業メモ登録モーダル
+// ================================================================
+function openCastVisitPlanModal(){
+  const castId=currentUser?.id;
+  const myCusts=customers.filter(c=>c.primary_cast_id===castId&&c.is_active!==false);
+  const custOpts=myCusts.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+  let m=document.getElementById('castVisitPlanModal');if(m)m.remove();
+  m=document.createElement('div');m.id='castVisitPlanModal';
+  m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;';
+  m.innerHTML=`<div style="background:#fff;border-radius:16px;padding:20px;max-width:400px;width:100%;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div style="font-size:15px;font-weight:800;color:var(--pink);">＋ 来店予定を登録</div>
+      <button class="btn outline small" onclick="document.getElementById('castVisitPlanModal').remove()">✕</button>
+    </div>
+    <div class="fg"><label class="label">顧客 *</label>
+      <select id="cvpCust" class="inp"><option value="">選択してください</option>${custOpts}</select></div>
+    <div class="fg"><label class="label">来店予定日 *</label>
+      <input id="cvpDate" type="date" class="inp" value="${today()}"></div>
+    <div class="fg"><label class="label">メモ</label>
+      <textarea id="cvpMemo" class="inp" placeholder="来店予定の詳細など"></textarea></div>
+    <button class="btn primary full" onclick="saveCastVisitPlan()">保存</button>
+  </div>`;
+  document.body.appendChild(m);
+}
+
+async function saveCastVisitPlan(){
+  const custId=document.getElementById('cvpCust')?.value||'';
+  const date=document.getElementById('cvpDate')?.value||'';
+  if(!custId){toast('顧客を選択してください');return;}
+  if(!date){toast('来店予定日を入力してください');return;}
+  // customers.next_visit_date を更新
+  const c=customers.find(x=>x.id===custId);
+  if(!c){toast('顧客が見つかりません');return;}
+  const patch={next_visit_date:date,updated_at:new Date().toISOString()};
+  const i=customers.findIndex(x=>x.id===custId);
+  if(i>=0)customers[i]={...customers[i],...patch};
+  if(!isDemo()){
+    const{error}=await SB.patch('customers',[['id','eq',custId]],patch);
+    if(error){toast('❌ 来店予定保存失敗: '+formatSBError(error));return;}
+  }else{
+    lsSet('gb_customers',customers);
+  }
+  // calendar_events にも記録
+  const memo=document.getElementById('cvpMemo')?.value||'';
+  await sbSaveCalendarEvent({
+    cast_id:currentUser?.id,
+    customer_id:custId,
+    event_date:date,
+    event_type:'visit_planned',
+    title:(c.name||'')+'の来店予定',
+    memo,
+  });
+  document.getElementById('castVisitPlanModal')?.remove();
+  toast('✅ 来店予定を登録しました');
+  renderCastSalesPage();
+}
+
+function openCastMemoModal(){
+  let m=document.getElementById('castMemoModal');if(m)m.remove();
+  m=document.createElement('div');m.id='castMemoModal';
+  m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;';
+  const castId=currentUser?.id;
+  const myCusts=customers.filter(c=>c.primary_cast_id===castId&&c.is_active!==false);
+  const custOpts=myCusts.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+  m.innerHTML=`<div style="background:#fff;border-radius:16px;padding:20px;max-width:400px;width:100%;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div style="font-size:15px;font-weight:800;color:var(--pink);">＋ 営業メモを追加</div>
+      <button class="btn outline small" onclick="document.getElementById('castMemoModal').remove()">✕</button>
+    </div>
+    <div class="fg"><label class="label">顧客（任意）</label>
+      <select id="cmemoCust" class="inp"><option value="">顧客なし</option>${custOpts}</select></div>
+    <div class="fg"><label class="label">日付 *</label>
+      <input id="cmemoDate" type="date" class="inp" value="${today()}"></div>
+    <div class="fg"><label class="label">メモ内容 *</label>
+      <textarea id="cmemoText" class="inp" placeholder="営業メモを入力..." style="min-height:90px;"></textarea></div>
+    <button class="btn primary full" onclick="saveCastMemo()">保存</button>
+  </div>`;
+  document.body.appendChild(m);
+}
+
+async function saveCastMemo(){
+  const date=document.getElementById('cmemoDate')?.value||'';
+  const text=(document.getElementById('cmemoText')?.value||'').trim();
+  if(!date){toast('日付を入力してください');return;}
+  if(!text){toast('メモ内容を入力してください');return;}
+  const custId=document.getElementById('cmemoCust')?.value||null;
+  await sbSaveCalendarEvent({
+    cast_id:currentUser?.id,
+    customer_id:custId||null,
+    event_date:date,
+    event_type:'memo',
+    title:'営業メモ',
+    memo:text,
+  });
+  document.getElementById('castMemoModal')?.remove();
+  toast('✅ 営業メモを保存しました');
+}
+
+// ================================================================
 // キャスト 営業ページ
 // ================================================================
 function loadCastSalesPage(){
@@ -6626,6 +6762,36 @@ function renderCastSalesPage(){
     // キャストの場合は営業ページ表示用にpgCastSalesをshowリストに追加
     if(currentUser&&currentUser.role!=='admin'){
       show('pgCastSales');
+      // 契約未同意チェック
+      const s=castContractStatuses[currentUser.id]||{};
+      const contractOk=s.business_contract_status==='signed';
+      const ruleOk=s.rule_agreement_status==='signed';
+      if(!contractOk||!ruleOk){
+        const msg='契約または店舗ルール同意が未完了のため入力できません';
+        // 日報・シフト・営業入力の各タブボタンを disabled にする
+        document.querySelectorAll('#castTabs .tab').forEach(tab=>{
+          const target=tab.getAttribute('onclick')||'';
+          if(target.includes('pgDaily')||target.includes('pgShiftRequest')||target.includes('pgCastSales')){
+            tab.setAttribute('disabled','true');
+            tab.style.opacity='0.4';
+            tab.style.cursor='not-allowed';
+            tab.setAttribute('title',msg);
+            tab.onclick=function(e){e.preventDefault();toast('⚠️ '+msg);};
+          }
+        });
+        // pgCastSalesのアクションボタンも無効化
+        const castSalesPage=document.getElementById('pgCastSales');
+        if(castSalesPage){
+          const banner=document.createElement('div');
+          banner.className='alert-banner warn';
+          banner.style.cssText='margin-bottom:12px;';
+          banner.innerHTML='<span style="font-size:20px;">⚠️</span><div><b>'+msg+'</b><br><span style="font-size:12px;">「契約」タブから署名・同意を完了してください。</span></div>';
+          castSalesPage.insertBefore(banner,castSalesPage.firstChild);
+          castSalesPage.querySelectorAll('button').forEach(btn=>{
+            btn.disabled=true;btn.style.opacity='0.4';btn.style.cursor='not-allowed';
+          });
+        }
+      }
     } else if(currentUser&&currentUser.role==='admin'){
       show('pgSales');
     }
