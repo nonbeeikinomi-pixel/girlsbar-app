@@ -384,7 +384,7 @@ td{padding:9px;border-bottom:1px solid var(--border);white-space:nowrap}
 
   <!-- ===== 管理者 概要 ===== -->
   <div class="page hidden" id="pgAdminTop">
-    <div class="row"><label>月</label><input type="month" id="aMonth" class="inp" onchange="loadAdminTop()"></div>
+    <div class="row"><label>月</label><input type="month" id="aMonth" class="inp" onchange="reloadAdminTopWithCustomers(this.value)"></div>
     <div id="aTopInner"></div>
   </div>
 
@@ -1026,6 +1026,7 @@ function saveDailyCustomer(date,count){
   if(count>0) storeDailyCustomers[date]=count;
   else delete storeDailyCustomers[date];
   lsSet('gb_dailyCustomers',storeDailyCustomers);
+  sbSaveDailyCustomer(date,count>0?count:0);
   const m=date.substring(0,7);
   const total=getMonthlyCustomers(m);
   const kpi=calcMonthlyKPI(m);
@@ -1152,6 +1153,7 @@ async function afterLogin(){
     loadAllReports(),
     loadAllGoals(),
     loadStoreDailyReports(),
+    loadStoreDailyCustomers(),
     loadBottleMasters(),
     loadStoreConfig(),
     loadPayRecords(),
@@ -2383,6 +2385,30 @@ async function sbSaveStoreDailyReport(report){
     storeDailyReports.push(report);return;
   }
   return await SB.upsert('store_daily_reports',{...report,updated_at:new Date().toISOString()},'report_date');
+}
+
+// 客数（store_daily_records）
+async function sbLoadStoreDailyCustomers(m){
+  if(isDemo())return;
+  const[yr,mo]=m.split('-').map(Number);
+  const lastDay=new Date(yr,mo,0).getDate();
+  const{data}=await SB.get('store_daily_records',{
+    filters:[['record_date','gte',m+'-01'],['record_date','lte',m+'-'+String(lastDay).padStart(2,'0')]],
+    order:'record_date.asc'
+  });
+  if(data) data.forEach(r=>{storeDailyCustomers[r.record_date]=r.customer_count||0;});
+  lsSet('gb_dailyCustomers',storeDailyCustomers);
+}
+async function loadStoreDailyCustomers(){
+  await sbLoadStoreDailyCustomers(month());
+}
+async function sbSaveDailyCustomer(date,count){
+  if(isDemo())return;
+  await SB.upsert('store_daily_records',{record_date:date,customer_count:count,updated_at:new Date().toISOString()},'record_date');
+}
+async function reloadAdminTopWithCustomers(m){
+  if(!isDemo()) await sbLoadStoreDailyCustomers(m||month());
+  loadAdminTop();
 }
 
 // 店舗設定
