@@ -200,6 +200,24 @@ td{padding:9px;border-bottom:1px solid var(--border);white-space:nowrap}
 /* 管理側 ルール同意一覧 */
 #ctRuleAgreements .ra-admin-row{display:grid;grid-template-columns:1fr 1fr 80px 90px;gap:8px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--border);font-size:13px;}
 #ctRuleAgreements .ra-admin-row:first-child{font-weight:800;color:var(--muted);font-size:11px;border-bottom:2px solid var(--border);}
+
+/* ===== 営業支援 CSS ===== */
+.sales-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;}
+.sales-cal-day{min-height:60px;padding:4px;border:1px solid var(--border);border-radius:6px;cursor:pointer;}
+.sales-cal-day:hover{background:var(--pink2);}
+.sales-cal-day.today{background:#fce7f3;}
+.sales-cal-day.other-month{opacity:0.4;}
+.sales-event-chip{font-size:9px;border-radius:4px;padding:1px 4px;margin:1px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff;display:block;cursor:pointer;}
+.customer-row{padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer;}
+.customer-row:hover{background:var(--pink2);border-radius:8px;}
+.task-item{padding:10px;border-radius:10px;margin-bottom:8px;border:1px solid var(--border);}
+.task-item.done{opacity:0.5;}
+.sales-sub-tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;}
+.sales-sub-tab{padding:8px 14px;border-radius:10px;border:1.5px solid var(--border);cursor:pointer;font-size:12px;font-weight:700;color:var(--muted);background:#fff;}
+.sales-sub-tab.on{background:var(--pink);color:#fff;border-color:var(--pink);}
+.sales-section{display:none;}.sales-section.on{display:block;}
+.no-visit-alert{background:#feeadb;border-radius:6px;padding:2px 6px;font-size:10px;color:#7a3a0b;display:inline-block;margin-left:4px;}
+@media(max-width:720px){.sales-cal-day{min-height:44px;}.sales-cal-day .sales-event-chip{font-size:8px;}}
 </style>
 </head>
 <body>
@@ -234,6 +252,7 @@ td{padding:9px;border-bottom:1px solid var(--border);white-space:nowrap}
     <div class="tab" onclick="goTab(this,'pgShiftRequest')">📋 シフト提出</div>
     <div class="tab" onclick="goTab(this,'pgMyShift')">📅 確定シフト</div>
     <div class="tab" onclick="goTab(this,'pgMyContract')">📄 契約</div>
+    <div class="tab" onclick="goTab(this,'pgCastSales')">💬 営業</div>
   </div>
 
   <!-- 管理者タブ -->
@@ -246,6 +265,7 @@ td{padding:9px;border-bottom:1px solid var(--border);white-space:nowrap}
     <div class="tab" onclick="goTab(this,'pgShiftMgmt')">🗓️ シフト</div>
     <div class="tab" onclick="goTab(this,'pgAdminContract')">📄 契約</div>
     <div class="tab" onclick="goTab(this,'pgAdminMgmt')">⚙️ 管理</div>
+    <div class="tab" onclick="goTab(this,'pgSales')">🎯 営業</div>
   </div>
 
   <!-- ===== キャスト ダッシュボード ===== -->
@@ -855,6 +875,113 @@ td{padding:9px;border-bottom:1px solid var(--border);white-space:nowrap}
         <button class="btn primary full" onclick="saveWage()">保存</button>
         <button class="btn outline full" onclick="hide('editWagePanel')">キャンセル</button>
       </div>
+    </div>
+  </div>
+
+  <!-- ===== 管理者 営業支援 ===== -->
+  <div class="page hidden" id="pgSales">
+    <div class="card" style="padding-bottom:8px;">
+      <div class="sales-sub-tabs">
+        <div class="sales-sub-tab on" onclick="switchSalesTab(this,'stCustomers')">👥 顧客管理</div>
+        <div class="sales-sub-tab" onclick="switchSalesTab(this,'stVisits')">📋 来店履歴</div>
+        <div class="sales-sub-tab" onclick="switchSalesTab(this,'stTasks')">✅ タスク</div>
+        <div class="sales-sub-tab" onclick="switchSalesTab(this,'stCalendar')">📅 カレンダー</div>
+        <div class="sales-sub-tab" onclick="switchSalesTab(this,'stKpi')">📊 KPI</div>
+      </div>
+
+      <!-- 顧客管理 -->
+      <div class="sales-section on" id="stCustomers">
+        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+          <input id="custSearch" class="inp" style="flex:1;min-width:140px;" placeholder="顧客名・ニックネームで検索..." oninput="renderCustomerList()">
+          <button class="btn primary small" onclick="openCustomerModal(null)">＋ 顧客追加</button>
+        </div>
+        <div id="custListWrap"></div>
+      </div>
+
+      <!-- 来店履歴 -->
+      <div class="sales-section" id="stVisits">
+        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center;">
+          <select id="visitFilterCast" class="inp" style="flex:1;min-width:100px;" onchange="renderVisitList()"><option value="">全キャスト</option></select>
+          <select id="visitFilterCust" class="inp" style="flex:1;min-width:100px;" onchange="renderVisitList()"><option value="">全顧客</option></select>
+          <select id="visitFilterType" class="inp" style="flex:1;min-width:100px;" onchange="renderVisitList()">
+            <option value="">全区分</option>
+            <option value="free">フリー</option>
+            <option value="baai">場内指名</option>
+            <option value="honshimei">本指名</option>
+            <option value="dohan">同伴</option>
+          </select>
+          <button class="btn primary small" onclick="openVisitModal(null)">＋ 来店記録</button>
+        </div>
+        <div id="visitListWrap"></div>
+      </div>
+
+      <!-- タスク -->
+      <div class="sales-section" id="stTasks">
+        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+          <select id="taskFilterStatus" class="inp" style="flex:1;min-width:100px;" onchange="renderTaskList()">
+            <option value="undone">未対応</option>
+            <option value="done">対応済</option>
+            <option value="">全て</option>
+          </select>
+          <select id="taskFilterType" class="inp" style="flex:1;min-width:100px;" onchange="renderTaskList()">
+            <option value="">全種別</option>
+            <option value="thank_line">お礼LINE</option>
+            <option value="no_contact_14">14日連絡なし</option>
+            <option value="no_visit_30">30日未来店</option>
+            <option value="birthday">誕生日営業</option>
+            <option value="next_visit_confirm">来店確認</option>
+          </select>
+          <select id="taskFilterCast" class="inp" style="flex:1;min-width:100px;" onchange="renderTaskList()"><option value="">全キャスト</option></select>
+        </div>
+        <div id="taskListWrap"></div>
+      </div>
+
+      <!-- カレンダー -->
+      <div class="sales-section" id="stCalendar">
+        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center;">
+          <div style="display:flex;gap:4px;">
+            <button class="btn outline small" id="calViewMonth" onclick="setSalesCalView('month')" style="background:var(--pink);color:#fff;border-color:var(--pink);">月</button>
+            <button class="btn outline small" id="calViewWeek" onclick="setSalesCalView('week')">週</button>
+            <button class="btn outline small" id="calViewDay" onclick="setSalesCalView('day')">日</button>
+          </div>
+          <select id="calFilterCast" class="inp" style="flex:1;min-width:100px;" onchange="renderSalesCalendar()"><option value="">全キャスト</option></select>
+          <select id="calFilterType" class="inp" style="flex:1;min-width:100px;" onchange="renderSalesCalendar()">
+            <option value="">全種別</option>
+            <option value="visit">来店済</option>
+            <option value="visit_planned">来店予定</option>
+            <option value="dohan_planned">同伴予定</option>
+          </select>
+          <button class="btn outline small" onclick="salesCalPrev()">◀</button>
+          <span id="salesCalLabel" style="font-size:13px;font-weight:800;white-space:nowrap;"></span>
+          <button class="btn outline small" onclick="salesCalNext()">▶</button>
+        </div>
+        <div id="salesCalWrap"></div>
+      </div>
+
+      <!-- KPI -->
+      <div class="sales-section" id="stKpi">
+        <div id="salesKpiWrap"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== キャスト 営業支援 ===== -->
+  <div class="page hidden" id="pgCastSales">
+    <div class="card">
+      <div class="title">📌 今日やること</div>
+      <div id="castTodayTasks"></div>
+    </div>
+    <div class="card">
+      <div class="title">👥 自分の顧客</div>
+      <div id="castMyCustomers"></div>
+    </div>
+    <div class="card">
+      <div class="title">📅 来店予定（7日以内）</div>
+      <div id="castUpcomingVisits"></div>
+    </div>
+    <div class="card">
+      <div class="title">📊 今月の営業KPI</div>
+      <div id="castSalesKpi"></div>
     </div>
   </div>
 
@@ -5474,6 +5601,1034 @@ function saveRulePdfUrl(){
       }
     }
     return result;
+  };
+})();
+
+// ================================================================
+// 営業支援機能
+// ================================================================
+
+// グローバル変数
+let customers = [];
+let visits = [];
+let customerTasks = [];
+let calendarEvents = [];
+let salesCalendarDate = new Date();
+let salesCalendarView = 'month';
+
+const EVENT_COLORS = {
+  visit: '#9ca3af',
+  visit_planned: '#3b82f6',
+  dohan_planned: '#8b5cf6',
+  line_unsent: '#ef4444',
+  no_visit_30: '#f97316',
+  birthday: '#eab308',
+};
+
+const TASK_LABELS = {
+  thank_line: '📱 お礼LINE',
+  no_contact_14: '💬 14日連絡なし',
+  no_visit_30: '🚨 30日未来店',
+  birthday: '🎂 誕生日営業',
+  bottle_low: '🍾 ボトル確認',
+  next_visit_confirm: '📅 来店確認',
+};
+
+const VISIT_TYPE_LABELS = {
+  free: 'フリー',
+  baai: '場内指名',
+  honshimei: '本指名',
+  dohan: '同伴',
+};
+
+// ── 権限フィルタ ──
+function getVisibleCustomers(){
+  if(!currentUser) return [];
+  if(currentUser.role==='admin') return customers;
+  return customers.filter(c=>c.primary_cast_id===currentUser.id);
+}
+
+// ================================================================
+// Supabase CRUD: customers
+// ================================================================
+async function sbLoadCustomers(){
+  if(isDemo()){customers=lsGet('gb_customers',[]);return;}
+  try{
+    const res=await SB.get('customers?order=name');
+    customers=res||[];
+  }catch(e){console.error('sbLoadCustomers',e);}
+}
+
+async function sbSaveCustomer(c){
+  if(isDemo()){
+    if(c.id){
+      const i=customers.findIndex(x=>x.id===c.id);
+      if(i>=0)customers[i]={...customers[i],...c};
+      else customers.push(c);
+    }else{
+      c.id='demo_c_'+Date.now();
+      c.created_at=new Date().toISOString();
+      c.visit_count=0;c.total_sales=0;c.is_active=true;
+      customers.push(c);
+    }
+    lsSet('gb_customers',customers);
+    return c;
+  }
+  try{
+    const payload={...c};
+    delete payload.id;
+    if(c.id){
+      const res=await SB.patch('customers?id=eq.'+c.id,payload);
+      const updated=(res&&res[0])||{...customers.find(x=>x.id===c.id)||{},...payload,id:c.id};
+      const i=customers.findIndex(x=>x.id===c.id);
+      if(i>=0)customers[i]=updated;
+      return updated;
+    }else{
+      payload.created_at=new Date().toISOString();
+      payload.visit_count=0;payload.total_sales=0;payload.is_active=true;
+      const res=await SB.post('customers',payload);
+      const created=(res&&res[0])||{...payload,id:'new_'+Date.now()};
+      customers.push(created);
+      return created;
+    }
+  }catch(e){toast('⚠️ 顧客保存エラー');console.error(e);}
+}
+
+async function sbDeleteCustomer(id){
+  if(isDemo()){
+    customers=customers.filter(c=>c.id!==id);
+    lsSet('gb_customers',customers);
+    return;
+  }
+  try{await SB.delete('customers?id=eq.'+id);}
+  catch(e){toast('⚠️ 削除エラー');console.error(e);}
+  customers=customers.filter(c=>c.id!==id);
+}
+
+// ================================================================
+// Supabase CRUD: visits
+// ================================================================
+async function sbLoadVisits(){
+  if(isDemo()){visits=lsGet('gb_visits',[]);return;}
+  try{
+    const res=await SB.get('visits?order=visit_date.desc');
+    visits=res||[];
+  }catch(e){console.error('sbLoadVisits',e);}
+}
+
+async function sbSaveVisit(v){
+  if(isDemo()){
+    if(v.id){
+      const i=visits.findIndex(x=>x.id===v.id);
+      if(i>=0)visits[i]={...visits[i],...v};
+      else visits.push(v);
+    }else{
+      v.id='demo_v_'+Date.now();
+      v.created_at=new Date().toISOString();
+      visits.push(v);
+    }
+    lsSet('gb_visits',visits);
+    return v;
+  }
+  try{
+    const payload={...v};
+    delete payload.id;
+    if(v.id){
+      const res=await SB.patch('visits?id=eq.'+v.id,payload);
+      const updated=(res&&res[0])||{...visits.find(x=>x.id===v.id)||{},...payload,id:v.id};
+      const i=visits.findIndex(x=>x.id===v.id);
+      if(i>=0)visits[i]=updated;
+      return updated;
+    }else{
+      payload.created_at=new Date().toISOString();
+      const res=await SB.post('visits',payload);
+      const created=(res&&res[0])||{...payload,id:'new_'+Date.now()};
+      visits.push(created);
+      return created;
+    }
+  }catch(e){toast('⚠️ 来店記録保存エラー');console.error(e);}
+}
+
+async function sbDeleteVisit(id){
+  if(isDemo()){
+    visits=visits.filter(v=>v.id!==id);
+    lsSet('gb_visits',visits);
+    return;
+  }
+  try{await SB.delete('visits?id=eq.'+id);}
+  catch(e){toast('⚠️ 削除エラー');console.error(e);}
+  visits=visits.filter(v=>v.id!==id);
+}
+
+async function sbUpdateCustomerStats(customerId){
+  const cvs=visits.filter(v=>v.customer_id===customerId);
+  const visit_count=cvs.length;
+  const total_sales=cvs.reduce((s,v)=>s+(v.sales_amount||0),0);
+  const sorted=cvs.filter(v=>v.visit_date).sort((a,b)=>b.visit_date.localeCompare(a.visit_date));
+  const last_visit_date=sorted.length?sorted[0].visit_date:null;
+  const patch={visit_count,total_sales,last_visit_date,updated_at:new Date().toISOString()};
+  const i=customers.findIndex(c=>c.id===customerId);
+  if(i>=0)customers[i]={...customers[i],...patch};
+  if(isDemo()){lsSet('gb_customers',customers);return;}
+  try{await SB.patch('customers?id=eq.'+customerId,patch);}
+  catch(e){console.error('sbUpdateCustomerStats',e);}
+}
+
+// ================================================================
+// Supabase CRUD: tasks
+// ================================================================
+async function sbLoadTasks(){
+  if(isDemo()){customerTasks=lsGet('gb_customer_tasks',[]);return;}
+  try{
+    const res=await SB.get('customer_tasks?order=due_date');
+    customerTasks=res||[];
+  }catch(e){console.error('sbLoadTasks',e);}
+}
+
+async function sbSaveTask(t){
+  if(isDemo()){
+    if(t.id){
+      const i=customerTasks.findIndex(x=>x.id===t.id);
+      if(i>=0)customerTasks[i]={...customerTasks[i],...t};
+      else customerTasks.push(t);
+    }else{
+      t.id='demo_t_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
+      t.created_at=new Date().toISOString();
+      customerTasks.push(t);
+    }
+    lsSet('gb_customer_tasks',customerTasks);
+    return t;
+  }
+  try{
+    const payload={...t};
+    delete payload.id;
+    if(t.id){
+      const res=await SB.patch('customer_tasks?id=eq.'+t.id,payload);
+      const updated=(res&&res[0])||{...customerTasks.find(x=>x.id===t.id)||{},...payload,id:t.id};
+      const i=customerTasks.findIndex(x=>x.id===t.id);
+      if(i>=0)customerTasks[i]=updated;
+      return updated;
+    }else{
+      payload.created_at=new Date().toISOString();
+      const res=await SB.post('customer_tasks',payload);
+      const created=(res&&res[0])||{...payload,id:'new_'+Date.now()};
+      customerTasks.push(created);
+      return created;
+    }
+  }catch(e){toast('⚠️ タスク保存エラー');console.error(e);}
+}
+
+async function sbToggleTask(id, done){
+  const t=customerTasks.find(x=>x.id===id);
+  if(!t)return;
+  t.is_done=done;
+  if(isDemo()){lsSet('gb_customer_tasks',customerTasks);return;}
+  try{await SB.patch('customer_tasks?id=eq.'+id,{is_done:done});}
+  catch(e){console.error('sbToggleTask',e);}
+}
+
+async function sbDeleteTask(id){
+  if(isDemo()){
+    customerTasks=customerTasks.filter(t=>t.id!==id);
+    lsSet('gb_customer_tasks',customerTasks);
+    return;
+  }
+  try{await SB.delete('customer_tasks?id=eq.'+id);}
+  catch(e){toast('⚠️ タスク削除エラー');console.error(e);}
+  customerTasks=customerTasks.filter(t=>t.id!==id);
+}
+
+// ================================================================
+// Supabase CRUD: calendar_events
+// ================================================================
+async function sbLoadCalendarEvents(){
+  if(isDemo()){calendarEvents=lsGet('gb_calendar_events',[]);return;}
+  try{
+    const res=await SB.get('calendar_events?order=event_date');
+    calendarEvents=res||[];
+  }catch(e){console.error('sbLoadCalendarEvents',e);}
+}
+
+async function sbSaveCalendarEvent(e){
+  if(isDemo()){
+    if(e.id){
+      const i=calendarEvents.findIndex(x=>x.id===e.id);
+      if(i>=0)calendarEvents[i]={...calendarEvents[i],...e};
+      else calendarEvents.push(e);
+    }else{
+      e.id='demo_ce_'+Date.now();
+      e.created_at=new Date().toISOString();
+      calendarEvents.push(e);
+    }
+    lsSet('gb_calendar_events',calendarEvents);
+    return e;
+  }
+  try{
+    const payload={...e};
+    delete payload.id;
+    if(e.id){
+      const res=await SB.patch('calendar_events?id=eq.'+e.id,payload);
+      const updated=(res&&res[0])||{...calendarEvents.find(x=>x.id===e.id)||{},...payload,id:e.id};
+      const i=calendarEvents.findIndex(x=>x.id===e.id);
+      if(i>=0)calendarEvents[i]=updated;
+      return updated;
+    }else{
+      payload.created_at=new Date().toISOString();
+      const res=await SB.post('calendar_events',payload);
+      const created=(res&&res[0])||{...payload,id:'new_'+Date.now()};
+      calendarEvents.push(created);
+      return created;
+    }
+  }catch(e2){toast('⚠️ カレンダー保存エラー');console.error(e2);}
+}
+
+async function sbDeleteCalendarEvent(id){
+  if(isDemo()){
+    calendarEvents=calendarEvents.filter(e=>e.id!==id);
+    lsSet('gb_calendar_events',calendarEvents);
+    return;
+  }
+  try{await SB.delete('calendar_events?id=eq.'+id);}
+  catch(e){toast('⚠️ 削除エラー');console.error(e);}
+  calendarEvents=calendarEvents.filter(e=>e.id!==id);
+}
+
+// ================================================================
+// 自動タスク生成
+// ================================================================
+async function generateTasksForVisit(visit, customer){
+  const castId=visit.cast_id||customer.primary_cast_id||null;
+  // お礼LINE（翌日）
+  if(visit.visit_date){
+    const d=new Date(visit.visit_date);
+    d.setDate(d.getDate()+1);
+    const dueDate=d.toISOString().slice(0,10);
+    const exists=customerTasks.find(t=>t.customer_id===customer.id&&t.task_type==='thank_line'&&t.due_date===dueDate);
+    if(!exists){
+      await sbSaveTask({customer_id:customer.id,cast_id:castId,task_type:'thank_line',due_date:dueDate,is_done:false,memo:'来店のお礼LINEを送る'});
+    }
+  }
+  // 次回来店確認（2日前）
+  if(visit.next_visit_date){
+    const d=new Date(visit.next_visit_date);
+    d.setDate(d.getDate()-2);
+    const dueDate=d.toISOString().slice(0,10);
+    const exists=customerTasks.find(t=>t.customer_id===customer.id&&t.task_type==='next_visit_confirm'&&t.due_date===dueDate);
+    if(!exists){
+      await sbSaveTask({customer_id:customer.id,cast_id:castId,task_type:'next_visit_confirm',due_date:dueDate,is_done:false,memo:'次回来店確認のLINEを送る'});
+    }
+  }
+}
+
+async function generateAutoTasks(){
+  const todayStr=today();
+  const visibleCusts=getVisibleCustomers();
+  for(const c of visibleCusts){
+    // 14日連絡なし
+    if(c.last_visit_date){
+      const diff=Math.floor((new Date(todayStr)-new Date(c.last_visit_date))/(1000*60*60*24));
+      if(diff>=14){
+        const exists=customerTasks.find(t=>t.customer_id===c.id&&t.task_type==='no_contact_14'&&!t.is_done);
+        if(!exists){
+          await sbSaveTask({customer_id:c.id,cast_id:c.primary_cast_id||null,task_type:'no_contact_14',due_date:todayStr,is_done:false,memo:'14日以上連絡なし'});
+        }
+      }
+    }
+    // 30日未来店
+    if(c.last_visit_date){
+      const diff=Math.floor((new Date(todayStr)-new Date(c.last_visit_date))/(1000*60*60*24));
+      if(diff>=30){
+        const exists=customerTasks.find(t=>t.customer_id===c.id&&t.task_type==='no_visit_30'&&!t.is_done);
+        if(!exists){
+          await sbSaveTask({customer_id:c.id,cast_id:c.primary_cast_id||null,task_type:'no_visit_30',due_date:todayStr,is_done:false,memo:'30日以上来店なし'});
+        }
+      }
+    }
+    // 誕生日7日前
+    if(c.birthday){
+      const [bm,bd]=c.birthday.split('-').map(Number);
+      const now=new Date(todayStr);
+      const thisYearBd=new Date(now.getFullYear(),bm-1,bd);
+      let bdStr=thisYearBd.toISOString().slice(0,10);
+      const diffBd=Math.floor((thisYearBd-now)/(1000*60*60*24));
+      if(diffBd>=0&&diffBd<=7){
+        const exists=customerTasks.find(t=>t.customer_id===c.id&&t.task_type==='birthday'&&t.due_date===bdStr&&!t.is_done);
+        if(!exists){
+          await sbSaveTask({customer_id:c.id,cast_id:c.primary_cast_id||null,task_type:'birthday',due_date:bdStr,is_done:false,memo:'誕生日営業（'+bdStr+'）'});
+        }
+      }
+    }
+  }
+}
+
+// ================================================================
+// UIヘルパー
+// ================================================================
+function switchSalesTab(el, sectionId){
+  el.closest('.sales-sub-tabs').querySelectorAll('.sales-sub-tab').forEach(t=>t.classList.remove('on'));
+  el.classList.add('on');
+  el.closest('.card').querySelectorAll('.sales-section').forEach(s=>s.classList.remove('on'));
+  document.getElementById(sectionId).classList.add('on');
+  if(sectionId==='stCustomers')renderCustomerList();
+  if(sectionId==='stVisits')renderVisitList();
+  if(sectionId==='stTasks')renderTaskList();
+  if(sectionId==='stCalendar')renderSalesCalendar();
+  if(sectionId==='stKpi')renderSalesKpi();
+}
+
+function castNameById(id){
+  const c=demoCasts.find(x=>x.id===id);
+  return c?escapeHtml(c.name):'—';
+}
+
+function customerNameById(id){
+  const c=customers.find(x=>x.id===id);
+  return c?escapeHtml(c.name):'—';
+}
+
+function populateSalesFilters(){
+  ['visitFilterCast','taskFilterCast','calFilterCast'].forEach(selId=>{
+    const sel=document.getElementById(selId);
+    if(!sel)return;
+    const prev=sel.value;
+    sel.innerHTML='<option value="">全キャスト</option>'+demoCasts.filter(c=>c.role!=='admin'&&c.is_active).map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+    sel.value=prev;
+  });
+  const vcs=document.getElementById('visitFilterCust');
+  if(vcs){
+    const prev=vcs.value;
+    vcs.innerHTML='<option value="">全顧客</option>'+customers.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+    vcs.value=prev;
+  }
+}
+
+// ================================================================
+// 顧客管理レンダリング
+// ================================================================
+function renderCustomerList(){
+  const wrap=document.getElementById('custListWrap');
+  if(!wrap)return;
+  const q=(document.getElementById('custSearch')?.value||'').toLowerCase();
+  const list=getVisibleCustomers().filter(c=>{
+    if(!q)return true;
+    return (c.name||'').toLowerCase().includes(q)||(c.nickname||'').toLowerCase().includes(q);
+  });
+  const todayStr=today();
+  if(!list.length){wrap.innerHTML='<p class="note" style="text-align:center;padding:20px;">顧客がいません。顧客追加ボタンから登録してください。</p>';return;}
+  wrap.innerHTML=list.map(c=>{
+    const daysSince=c.last_visit_date?Math.floor((new Date(todayStr)-new Date(c.last_visit_date))/(1000*60*60*24)):999;
+    const rowBg=daysSince>=30?'background:#fff7ed;':'';
+    const alertBadge=daysSince>=30?'<span class="no-visit-alert">'+daysSince+'日未来店</span>':'';
+    return `<div class="customer-row" style="${rowBg}padding:10px 6px;" onclick="openCustomerModal('${c.id}')">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px;">
+        <div>
+          <span style="font-weight:800;font-size:14px;">${escapeHtml(c.name)}</span>
+          ${c.nickname?`<span style="font-size:11px;color:var(--muted);margin-left:4px;">${escapeHtml(c.nickname)}</span>`:''}
+          ${alertBadge}
+        </div>
+        <div style="font-size:12px;color:var(--muted);">${castNameById(c.primary_cast_id)}</div>
+      </div>
+      <div style="display:flex;gap:12px;margin-top:4px;font-size:12px;flex-wrap:wrap;">
+        <span>最終来店: <b>${c.last_visit_date||'なし'}</b></span>
+        <span>来店: <b>${c.visit_count||0}回</b></span>
+        <span>累計: <b>${yen(c.total_sales||0)}</b></span>
+        <span>LINE: <b>${c.has_line?'✅':'—'}</b></span>
+        ${c.next_visit_date?`<span>次回: <b>${c.next_visit_date}</b></span>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ================================================================
+// 顧客追加/編集モーダル
+// ================================================================
+function openCustomerModal(custId){
+  const c=custId?customers.find(x=>x.id===custId):null;
+  let m=document.getElementById('customerModal');if(m)m.remove();
+  m=document.createElement('div');m.id='customerModal';
+  m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:20px;';
+  const castOpts=demoCasts.filter(x=>x.role!=='admin'&&x.is_active).map(x=>`<option value="${x.id}"${c&&c.primary_cast_id===x.id?' selected':''}>${escapeHtml(x.name)}</option>`).join('');
+  m.innerHTML=`<div style="background:#fff;border-radius:16px;padding:20px;max-width:540px;width:100%;margin:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div style="font-size:15px;font-weight:800;color:var(--pink);">${c?'顧客編集':'顧客追加'}</div>
+      <button class="btn outline small" onclick="document.getElementById('customerModal').remove()">✕</button>
+    </div>
+    <div class="grid2">
+      <div class="fg"><label class="label">名前 *</label><input id="cmName" class="inp" value="${escapeHtml(c?.name||'')}"></div>
+      <div class="fg"><label class="label">ニックネーム</label><input id="cmNick" class="inp" value="${escapeHtml(c?.nickname||'')}"></div>
+    </div>
+    <div class="grid3">
+      <div class="fg"><label class="label">年齢層</label><input id="cmAge" class="inp" placeholder="30代" value="${escapeHtml(c?.age_range||'')}"></div>
+      <div class="fg"><label class="label">職業</label><input id="cmOcc" class="inp" value="${escapeHtml(c?.occupation||'')}"></div>
+      <div class="fg"><label class="label">LINE交換</label><select id="cmLine" class="inp"><option value="false"${!c?.has_line?' selected':''}>なし</option><option value="true"${c?.has_line?' selected':''}>あり</option></select></div>
+    </div>
+    <div class="fg"><label class="label">好きなドリンク</label><input id="cmDrinks" class="inp" value="${escapeHtml(c?.favorite_drinks||'')}"></div>
+    <div class="fg"><label class="label">好きな話題</label><input id="cmTopics" class="inp" value="${escapeHtml(c?.favorite_topics||'')}"></div>
+    <div class="fg"><label class="label">NGな話題</label><input id="cmNg" class="inp" value="${escapeHtml(c?.ng_items||'')}"></div>
+    <div class="grid2">
+      <div class="fg"><label class="label">誕生日 (MM-DD)</label><input id="cmBday" class="inp" placeholder="04-15" value="${escapeHtml(c?.birthday||'')}"></div>
+      <div class="fg"><label class="label">担当キャスト</label><select id="cmCast" class="inp"><option value="">未設定</option>${castOpts}</select></div>
+    </div>
+    <div class="fg"><label class="label">次回来店予定</label><input id="cmNextVisit" type="date" class="inp" value="${escapeHtml(c?.next_visit_date||'')}"></div>
+    <div class="fg"><label class="label">メモ</label><textarea id="cmMemo" class="inp">${escapeHtml(c?.memo||'')}</textarea></div>
+    <div style="display:flex;gap:8px;margin-top:8px;">
+      <button class="btn primary full" onclick="saveCustomerFromModal('${custId||''}')">保存</button>
+      ${c?`<button class="btn danger small" onclick="deleteCustomerConfirm('${c.id}')">🗑️ 削除</button>`:''}
+    </div>
+  </div>`;
+  document.body.appendChild(m);
+}
+
+async function saveCustomerFromModal(custId){
+  const name=(document.getElementById('cmName')?.value||'').trim();
+  if(!name){toast('名前を入力してください');return;}
+  const payload={
+    name, nickname:document.getElementById('cmNick')?.value||'',
+    age_range:document.getElementById('cmAge')?.value||'',
+    occupation:document.getElementById('cmOcc')?.value||'',
+    has_line:document.getElementById('cmLine')?.value==='true',
+    favorite_drinks:document.getElementById('cmDrinks')?.value||'',
+    favorite_topics:document.getElementById('cmTopics')?.value||'',
+    ng_items:document.getElementById('cmNg')?.value||'',
+    birthday:document.getElementById('cmBday')?.value||'',
+    primary_cast_id:document.getElementById('cmCast')?.value||null,
+    next_visit_date:document.getElementById('cmNextVisit')?.value||null,
+    memo:document.getElementById('cmMemo')?.value||'',
+    updated_at:new Date().toISOString(),
+  };
+  if(custId)payload.id=custId;
+  await sbSaveCustomer(payload);
+  document.getElementById('customerModal')?.remove();
+  toast('✅ 顧客を保存しました');
+  renderCustomerList();
+}
+
+async function deleteCustomerConfirm(id){
+  if(!confirm('この顧客を削除しますか？'))return;
+  await sbDeleteCustomer(id);
+  document.getElementById('customerModal')?.remove();
+  toast('🗑️ 顧客を削除しました');
+  renderCustomerList();
+}
+
+// ================================================================
+// 来店履歴レンダリング
+// ================================================================
+function renderVisitList(){
+  const wrap=document.getElementById('visitListWrap');
+  if(!wrap)return;
+  const castF=document.getElementById('visitFilterCast')?.value||'';
+  const custF=document.getElementById('visitFilterCust')?.value||'';
+  const typeF=document.getElementById('visitFilterType')?.value||'';
+  const visibleCustIds=new Set(getVisibleCustomers().map(c=>c.id));
+  let list=visits.filter(v=>visibleCustIds.has(v.customer_id));
+  if(castF)list=list.filter(v=>v.cast_id===castF);
+  if(custF)list=list.filter(v=>v.customer_id===custF);
+  if(typeF)list=list.filter(v=>v.visit_type===typeF);
+  list=list.slice().sort((a,b)=>(b.visit_date||'').localeCompare(a.visit_date||''));
+  if(!list.length){wrap.innerHTML='<p class="note" style="text-align:center;padding:20px;">来店記録がありません</p>';return;}
+  wrap.innerHTML=`<div class="tablewrap"><table>
+    <thead><tr><th>日付</th><th>顧客</th><th>キャスト</th><th>区分</th><th>売上</th><th>ドリンク</th><th>ボトル</th><th>お礼LINE</th><th>次回予定</th><th></th></tr></thead>
+    <tbody>${list.map(v=>`<tr>
+      <td>${escapeHtml(v.visit_date||'')}</td>
+      <td>${customerNameById(v.customer_id)}</td>
+      <td>${castNameById(v.cast_id)}</td>
+      <td>${escapeHtml(VISIT_TYPE_LABELS[v.visit_type]||v.visit_type||'')}</td>
+      <td class="num">${yen(v.sales_amount||0)}</td>
+      <td class="num">${v.drink_count||0}杯</td>
+      <td>${v.has_bottle?'🍾':'—'}</td>
+      <td>${v.line_sent?'✅':'—'}</td>
+      <td>${escapeHtml(v.next_visit_date||'—')}</td>
+      <td><button class="btn outline small" onclick="openVisitModal('${v.id}')">編集</button></td>
+    </tr>`).join('')}</tbody>
+  </table></div>`;
+}
+
+// ================================================================
+// 来店記録モーダル
+// ================================================================
+function openVisitModal(visitId){
+  const vi=visitId?visits.find(x=>x.id===visitId):null;
+  let m=document.getElementById('visitModal');if(m)m.remove();
+  m=document.createElement('div');m.id='visitModal';
+  m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:20px;';
+  const custOpts=getVisibleCustomers().map(c=>`<option value="${c.id}"${vi&&vi.customer_id===c.id?' selected':''}>${escapeHtml(c.name)}</option>`).join('');
+  const castOpts=demoCasts.filter(x=>x.role!=='admin'&&x.is_active).map(x=>`<option value="${x.id}"${vi&&vi.cast_id===x.id?' selected':''}>${escapeHtml(x.name)}</option>`).join('');
+  m.innerHTML=`<div style="background:#fff;border-radius:16px;padding:20px;max-width:540px;width:100%;margin:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div style="font-size:15px;font-weight:800;color:var(--pink);">${vi?'来店記録編集':'来店記録追加'}</div>
+      <button class="btn outline small" onclick="document.getElementById('visitModal').remove()">✕</button>
+    </div>
+    <div class="fg"><label class="label">顧客 *</label>
+      <select id="vmCust" class="inp"><option value="">選択してください</option>${custOpts}</select></div>
+    <div class="grid2">
+      <div class="fg"><label class="label">来店日 *</label><input id="vmDate" type="date" class="inp" value="${vi?.visit_date||today()}"></div>
+      <div class="fg"><label class="label">来店区分</label>
+        <select id="vmType" class="inp">
+          <option value="free"${vi?.visit_type==='free'?' selected':''}>フリー</option>
+          <option value="baai"${vi?.visit_type==='baai'?' selected':''}>場内指名</option>
+          <option value="honshimei"${vi?.visit_type==='honshimei'?' selected':''}>本指名</option>
+          <option value="dohan"${vi?.visit_type==='dohan'?' selected':''}>同伴</option>
+        </select></div>
+    </div>
+    <div class="fg"><label class="label">担当キャスト</label>
+      <select id="vmCast" class="inp"><option value="">未設定</option>${castOpts}</select></div>
+    <div class="grid3">
+      <div class="fg"><label class="label">売上（円）</label><input id="vmSales" type="number" class="inp" value="${vi?.sales_amount||0}"></div>
+      <div class="fg"><label class="label">ドリンク数</label><input id="vmDrinks" type="number" class="inp" value="${vi?.drink_count||0}"></div>
+      <div class="fg"><label class="label">ボトル</label>
+        <select id="vmBottle" class="inp"><option value="false"${!vi?.has_bottle?' selected':''}>なし</option><option value="true"${vi?.has_bottle?' selected':''}>あり</option></select></div>
+    </div>
+    <div class="grid2">
+      <div class="fg"><label class="label">次回来店予定</label><input id="vmNextVisit" type="date" class="inp" value="${vi?.next_visit_date||''}"></div>
+      <div class="fg"><label class="label">お礼LINE送信済</label>
+        <select id="vmLineSent" class="inp"><option value="false"${!vi?.line_sent?' selected':''}>未送信</option><option value="true"${vi?.line_sent?' selected':''}>送信済</option></select></div>
+    </div>
+    <div class="fg"><label class="label">メモ</label><textarea id="vmMemo" class="inp">${escapeHtml(vi?.memo||'')}</textarea></div>
+    <div style="display:flex;gap:8px;margin-top:8px;">
+      <button class="btn primary full" onclick="saveVisitFromModal('${visitId||''}')">保存</button>
+      ${vi?`<button class="btn danger small" onclick="deleteVisitConfirm('${vi.id}')">🗑️ 削除</button>`:''}
+    </div>
+  </div>`;
+  document.body.appendChild(m);
+}
+
+async function saveVisitFromModal(visitId){
+  const custId=document.getElementById('vmCust')?.value||'';
+  if(!custId){toast('顧客を選択してください');return;}
+  const visitDate=document.getElementById('vmDate')?.value||'';
+  if(!visitDate){toast('来店日を入力してください');return;}
+  const payload={
+    customer_id:custId,
+    visit_date:visitDate,
+    visit_type:document.getElementById('vmType')?.value||'free',
+    cast_id:document.getElementById('vmCast')?.value||null,
+    sales_amount:Number(document.getElementById('vmSales')?.value||0),
+    drink_count:Number(document.getElementById('vmDrinks')?.value||0),
+    has_bottle:document.getElementById('vmBottle')?.value==='true',
+    next_visit_date:document.getElementById('vmNextVisit')?.value||null,
+    line_sent:document.getElementById('vmLineSent')?.value==='true',
+    memo:document.getElementById('vmMemo')?.value||'',
+  };
+  if(visitId)payload.id=visitId;
+  const saved=await sbSaveVisit(payload);
+  await sbUpdateCustomerStats(custId);
+  if(!visitId&&saved){
+    const cust=customers.find(c=>c.id===custId);
+    if(cust)await generateTasksForVisit(saved,cust);
+  }
+  document.getElementById('visitModal')?.remove();
+  toast('✅ 来店記録を保存しました');
+  renderVisitList();
+}
+
+async function deleteVisitConfirm(id){
+  if(!confirm('この来店記録を削除しますか？'))return;
+  const v=visits.find(x=>x.id===id);
+  await sbDeleteVisit(id);
+  if(v)await sbUpdateCustomerStats(v.customer_id);
+  document.getElementById('visitModal')?.remove();
+  toast('🗑️ 来店記録を削除しました');
+  renderVisitList();
+}
+
+// ================================================================
+// タスクレンダリング
+// ================================================================
+function renderTaskList(){
+  const wrap=document.getElementById('taskListWrap');
+  if(!wrap)return;
+  const statusF=document.getElementById('taskFilterStatus')?.value;
+  const typeF=document.getElementById('taskFilterType')?.value||'';
+  const castF=document.getElementById('taskFilterCast')?.value||'';
+  const visibleCustIds=new Set(getVisibleCustomers().map(c=>c.id));
+  let list=customerTasks.filter(t=>visibleCustIds.has(t.customer_id));
+  if(statusF==='undone')list=list.filter(t=>!t.is_done);
+  else if(statusF==='done')list=list.filter(t=>t.is_done);
+  if(typeF)list=list.filter(t=>t.task_type===typeF);
+  if(castF)list=list.filter(t=>t.cast_id===castF);
+  list=list.slice().sort((a,b)=>(a.due_date||'').localeCompare(b.due_date||''));
+  if(!list.length){wrap.innerHTML='<p class="note" style="text-align:center;padding:20px;">タスクがありません</p>';return;}
+  wrap.innerHTML=list.map(t=>`<div class="task-item ${t.is_done?'done':''}">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+      <div>
+        <span style="font-size:13px;font-weight:800;">${TASK_LABELS[t.task_type]||escapeHtml(t.task_type)}</span>
+        <span style="font-size:12px;color:var(--muted);margin-left:6px;">${customerNameById(t.customer_id)}</span>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <span style="font-size:11px;color:var(--muted);">${castNameById(t.cast_id)}</span>
+        <span style="font-size:11px;color:${t.due_date<today()&&!t.is_done?'#ef4444':'var(--muted)'};">${t.due_date||''}</span>
+        <button class="btn ${t.is_done?'outline':'primary'} small" onclick="toggleTask('${t.id}',${!t.is_done})">${t.is_done?'戻す':'完了'}</button>
+        <button class="btn danger small" onclick="deleteTaskConfirm('${t.id}')">🗑️</button>
+      </div>
+    </div>
+    ${t.memo?`<div style="font-size:11px;color:var(--muted);margin-top:4px;">${escapeHtml(t.memo)}</div>`:''}
+  </div>`).join('');
+}
+
+async function toggleTask(id,done){
+  await sbToggleTask(id,done);
+  renderTaskList();
+  if(currentUser?.role!=='admin')renderCastSalesPage();
+}
+
+async function deleteTaskConfirm(id){
+  if(!confirm('このタスクを削除しますか？'))return;
+  await sbDeleteTask(id);
+  toast('🗑️ タスクを削除しました');
+  renderTaskList();
+}
+
+// ================================================================
+// カレンダー
+// ================================================================
+function setSalesCalView(view){
+  salesCalendarView=view;
+  ['calViewMonth','calViewWeek','calViewDay'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el){el.style.background='';el.style.color='';el.style.borderColor='';}
+  });
+  const activeId='calView'+view.charAt(0).toUpperCase()+view.slice(1);
+  const el=document.getElementById(activeId);
+  if(el){el.style.background='var(--pink)';el.style.color='#fff';el.style.borderColor='var(--pink)';}
+  renderSalesCalendar();
+}
+
+function salesCalPrev(){
+  if(salesCalendarView==='month'){salesCalendarDate.setMonth(salesCalendarDate.getMonth()-1);}
+  else if(salesCalendarView==='week'){salesCalendarDate.setDate(salesCalendarDate.getDate()-7);}
+  else{salesCalendarDate.setDate(salesCalendarDate.getDate()-1);}
+  renderSalesCalendar();
+}
+function salesCalNext(){
+  if(salesCalendarView==='month'){salesCalendarDate.setMonth(salesCalendarDate.getMonth()+1);}
+  else if(salesCalendarView==='week'){salesCalendarDate.setDate(salesCalendarDate.getDate()+7);}
+  else{salesCalendarDate.setDate(salesCalendarDate.getDate()+1);}
+  renderSalesCalendar();
+}
+
+function getSalesCalEvents(dateStr){
+  const castF=document.getElementById('calFilterCast')?.value||'';
+  const typeF=document.getElementById('calFilterType')?.value||'';
+  const todayStr=today();
+  const evts=[];
+  const visibleCustIds=new Set(getVisibleCustomers().map(c=>c.id));
+
+  // 来店済み
+  visits.filter(v=>v.visit_date===dateStr&&visibleCustIds.has(v.customer_id)).forEach(v=>{
+    if(castF&&v.cast_id!==castF)return;
+    if(typeF==='visit_planned'||typeF==='dohan_planned')return;
+    const cust=customers.find(c=>c.id===v.customer_id);
+    evts.push({type:'visit',label:(cust?.name||'顧客')+'（来店済）',color:EVENT_COLORS.visit,data:v});
+  });
+
+  // 来店予定 (customers.next_visit_date)
+  customers.filter(c=>c.next_visit_date===dateStr&&visibleCustIds.has(c.id)).forEach(c=>{
+    if(castF&&c.primary_cast_id!==castF)return;
+    if(typeF&&typeF!=='visit_planned'&&typeF!=='dohan_planned')return;
+    evts.push({type:'visit_planned',label:(c.name||'顧客')+'（来店予定）',color:EVENT_COLORS.visit_planned,data:c});
+  });
+
+  // お礼LINE未送信
+  visits.filter(v=>{
+    if(!v.visit_date||typeF)return false;
+    const d=new Date(v.visit_date);d.setDate(d.getDate()+1);
+    return d.toISOString().slice(0,10)===dateStr&&!v.line_sent&&visibleCustIds.has(v.customer_id);
+  }).forEach(v=>{
+    if(castF&&v.cast_id!==castF)return;
+    const cust=customers.find(c=>c.id===v.customer_id);
+    evts.push({type:'line_unsent',label:(cust?.name||'顧客')+'（お礼LINE未送信）',color:EVENT_COLORS.line_unsent,data:v});
+  });
+
+  return evts;
+}
+
+function renderSalesCalendar(){
+  const wrap=document.getElementById('salesCalWrap');
+  const label=document.getElementById('salesCalLabel');
+  if(!wrap)return;
+  const todayStr=today();
+
+  if(salesCalendarView==='month'){
+    const y=salesCalendarDate.getFullYear();
+    const mo=salesCalendarDate.getMonth();
+    if(label)label.textContent=y+'年'+(mo+1)+'月';
+    const first=new Date(y,mo,1);
+    const last=new Date(y,mo+1,0);
+    const startDow=first.getDay();
+    const days=[];
+    for(let i=0;i<startDow;i++){
+      const d=new Date(y,mo,1-startDow+i);
+      days.push({date:d,otherMonth:true});
+    }
+    for(let d=1;d<=last.getDate();d++)days.push({date:new Date(y,mo,d),otherMonth:false});
+    while(days.length%7!==0){
+      const last2=days[days.length-1].date;
+      const nd=new Date(last2);nd.setDate(nd.getDate()+1);
+      days.push({date:nd,otherMonth:true});
+    }
+    const dow=['日','月','火','水','木','金','土'];
+    wrap.innerHTML=`<div class="sales-cal-grid" style="margin-bottom:4px;">${dow.map((d,i)=>`<div style="text-align:center;font-size:10px;font-weight:800;color:${i===0?'var(--pink)':i===6?'#3b82f6':'var(--muted)'};padding:4px 0;">${d}</div>`).join('')}</div>
+    <div class="sales-cal-grid">${days.map(({date,otherMonth})=>{
+      const ds=date.toISOString().slice(0,10);
+      const isToday=ds===todayStr;
+      const evts=getSalesCalEvents(ds);
+      const shown=evts.slice(0,2);
+      const extra=evts.length-2;
+      return `<div class="sales-cal-day${isToday?' today':''}${otherMonth?' other-month':''}" onclick="openCalDayModal('${ds}')">
+        <div style="font-size:10px;font-weight:700;color:${date.getDay()===0?'var(--pink)':date.getDay()===6?'#3b82f6':'var(--text)'};">${date.getDate()}</div>
+        ${shown.map(e=>`<span class="sales-event-chip" style="background:${e.color};" onclick="event.stopPropagation();openCalEventModal(event,'${e.type}','${e.data?.id||''}','${ds}')">${escapeHtml(e.label)}</span>`).join('')}
+        ${extra>0?`<span style="font-size:9px;color:var(--muted);">+${extra}</span>`:''}
+      </div>`;
+    }).join('')}</div>`;
+  } else if(salesCalendarView==='week'){
+    const dow=['日','月','火','水','木','金','土'];
+    const base=new Date(salesCalendarDate);
+    base.setDate(base.getDate()-base.getDay());
+    const dates=Array.from({length:7},(_,i)=>{const d=new Date(base);d.setDate(d.getDate()+i);return d;});
+    if(label)label.textContent=dates[0].toISOString().slice(0,10)+'〜'+dates[6].toISOString().slice(0,10);
+    wrap.innerHTML=`<div class="sales-cal-grid">
+      ${dates.map((date,i)=>{
+        const ds=date.toISOString().slice(0,10);
+        const isToday=ds===todayStr;
+        const evts=getSalesCalEvents(ds);
+        return `<div class="sales-cal-day${isToday?' today':''}" style="min-height:80px;" onclick="openCalDayModal('${ds}')">
+          <div style="font-size:10px;font-weight:700;color:${i===0?'var(--pink)':i===6?'#3b82f6':'var(--text)'};">${dow[i]}<br>${date.getDate()}</div>
+          ${evts.map(e=>`<span class="sales-event-chip" style="background:${e.color};">${escapeHtml(e.label)}</span>`).join('')}
+        </div>`;
+      }).join('')}
+    </div>`;
+  } else {
+    // 日表示
+    const ds=salesCalendarDate.toISOString().slice(0,10);
+    if(label)label.textContent=ds;
+    const evts=getSalesCalEvents(ds);
+    wrap.innerHTML=`<div style="padding:8px;">
+      ${evts.length?evts.map(e=>`<div style="padding:12px;border-radius:10px;margin-bottom:8px;border:1px solid var(--border);display:flex;align-items:center;gap:8px;" onclick="openCalEventModal(event,'${e.type}','${e.data?.id||''}','${ds}')">
+        <span style="width:10px;height:10px;border-radius:50%;background:${e.color};flex-shrink:0;"></span>
+        <span style="font-size:13px;">${escapeHtml(e.label)}</span>
+      </div>`).join(''):'<p class="note" style="text-align:center;padding:20px;">この日のイベントはありません</p>'}
+      <button class="btn primary small" style="margin-top:8px;" onclick="openVisitModal(null)">＋ 来店記録を追加</button>
+    </div>`;
+  }
+}
+
+function openCalDayModal(dateStr){
+  const evts=getSalesCalEvents(dateStr);
+  let m=document.getElementById('calDayModal');if(m)m.remove();
+  m=document.createElement('div');m.id='calDayModal';
+  m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;';
+  m.innerHTML=`<div style="background:#fff;border-radius:16px;padding:20px;max-width:480px;width:100%;max-height:80vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <div style="font-size:15px;font-weight:800;color:var(--pink);">📅 ${dateStr}</div>
+      <button class="btn outline small" onclick="document.getElementById('calDayModal').remove()">✕</button>
+    </div>
+    ${evts.length?evts.map(e=>`<div style="padding:10px;border-radius:10px;margin-bottom:8px;border:1px solid var(--border);">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+        <span style="width:8px;height:8px;border-radius:50%;background:${e.color};"></span>
+        <span style="font-size:13px;font-weight:700;">${escapeHtml(e.label)}</span>
+      </div>
+      ${e.type==='visit'&&e.data?`<div style="font-size:12px;color:var(--muted);">区分: ${VISIT_TYPE_LABELS[e.data.visit_type]||''}　売上: ${yen(e.data.sales_amount||0)}　ドリンク: ${e.data.drink_count||0}杯<br>キャスト: ${castNameById(e.data.cast_id)}</div>`:''}
+    </div>`).join(''):'<p class="note" style="text-align:center;padding:12px;">この日のイベントはありません</p>'}
+    <button class="btn primary small full" style="margin-top:8px;" onclick="document.getElementById('calDayModal').remove();openVisitModal(null)">＋ 来店記録を追加</button>
+  </div>`;
+  document.body.appendChild(m);
+}
+
+function openCalEventModal(event,type,dataId,dateStr){
+  event.stopPropagation();
+  if(type==='visit'){openVisitModal(dataId);return;}
+  if(type==='visit_planned'){
+    const c=customers.find(x=>x.id===dataId);
+    if(c)openCustomerModal(c.id);
+  }
+}
+
+// ================================================================
+// KPI
+// ================================================================
+function renderSalesKpi(){
+  const wrap=document.getElementById('salesKpiWrap');
+  if(!wrap)return;
+  const todayStr=today();
+  const thisMonth=todayStr.slice(0,7);
+  const allCusts=getVisibleCustomers();
+  const total=allCusts.length;
+  const newThisMonth=allCusts.filter(c=>c.first_visit_date&&c.first_visit_date.startsWith(thisMonth)).length;
+  const noVisit30=allCusts.filter(c=>{
+    if(!c.last_visit_date)return false;
+    return Math.floor((new Date(todayStr)-new Date(c.last_visit_date))/(1000*60*60*24))>=30;
+  }).length;
+  const visibleCustIds=new Set(allCusts.map(c=>c.id));
+  const monthVisits=visits.filter(v=>v.visit_date&&v.visit_date.startsWith(thisMonth)&&visibleCustIds.has(v.customer_id));
+  const upcoming=allCusts.filter(c=>c.next_visit_date&&c.next_visit_date>=todayStr).length;
+
+  // 再来率（今月来店のうち2回目以上）
+  const revisit=monthVisits.filter(v=>{const c=customers.find(x=>x.id===v.customer_id);return (c?.visit_count||0)>=2;}).length;
+  const revisitRate=monthVisits.length>0?Math.round(revisit/monthVisits.length*100):0;
+
+  // フリー→指名転換率
+  const freeVisits=visits.filter(v=>v.visit_type==='free'&&visibleCustIds.has(v.customer_id));
+  const convertedIds=new Set(visits.filter(v=>v.visit_type==='honshimei'||v.visit_type==='baai').map(v=>v.customer_id));
+  const convertedFree=freeVisits.filter(v=>convertedIds.has(v.customer_id));
+  const convertRate=freeVisits.length>0?Math.round(new Set(convertedFree.map(v=>v.customer_id)).size/new Set(freeVisits.map(v=>v.customer_id)).size*100):0;
+
+  // キャスト別集計
+  const activeCasts=demoCasts.filter(c=>c.role!=='admin'&&c.is_active);
+  const castRows=activeCasts.map(cast=>{
+    const myCusts=allCusts.filter(c=>c.primary_cast_id===cast.id);
+    const myVisits=monthVisits.filter(v=>v.cast_id===cast.id);
+    const myRevs=myVisits.filter(v=>{const c=customers.find(x=>x.id===v.customer_id);return (c?.visit_count||0)>=2;});
+    const myReRate=myVisits.length>0?Math.round(myRevs.length/myVisits.length*100):0;
+    const mySales=myVisits.reduce((s,v)=>s+(v.sales_amount||0),0);
+    const myLineSent=myVisits.filter(v=>v.line_sent).length;
+    const myLineRate=myVisits.length>0?Math.round(myLineSent/myVisits.length*100):0;
+    return `<tr><td>${escapeHtml(cast.name)}</td><td class="num">${myCusts.length}人</td><td class="num">${myReRate}%</td><td class="num">${yen(mySales)}</td><td class="num">${myLineRate}%</td></tr>`;
+  }).join('');
+
+  wrap.innerHTML=`<div class="kpi-grid" style="grid-template-columns:repeat(2,1fr);">
+    <div class="stat"><div class="val">${total}</div><div class="lbl">顧客総数</div></div>
+    <div class="stat"><div class="val">${newThisMonth}</div><div class="lbl">新規顧客（今月）</div></div>
+    <div class="stat"><div class="val">${revisitRate}%</div><div class="lbl">再来率</div></div>
+    <div class="stat"><div class="val">${convertRate}%</div><div class="lbl">フリー→指名転換率</div></div>
+    <div class="stat"><div class="val">${upcoming}</div><div class="lbl">来店予定数</div></div>
+    <div class="stat" style="background:#feeadb;"><div class="val" style="color:#7a3a0b;">${noVisit30}</div><div class="lbl" style="color:#f97316;">30日未来店数</div></div>
+  </div>
+  <div class="title" style="margin-top:8px;">キャスト別</div>
+  <div class="tablewrap"><table>
+    <thead><tr><th>キャスト</th><th>顧客数</th><th>再来率</th><th>今月売上</th><th>LINE送信率</th></tr></thead>
+    <tbody>${castRows||'<tr><td colspan="5" style="text-align:center;color:var(--muted);">データなし</td></tr>'}</tbody>
+  </table></div>`;
+}
+
+// ================================================================
+// 管理者 営業ページ ロード
+// ================================================================
+function loadSalesPage(){
+  populateSalesFilters();
+  renderCustomerList();
+}
+
+// ================================================================
+// キャスト 営業ページ
+// ================================================================
+function loadCastSalesPage(){
+  renderCastSalesPage();
+}
+
+function renderCastSalesPage(){
+  const todayStr=today();
+  const next7=new Date();next7.setDate(next7.getDate()+7);
+  const next7Str=next7.toISOString().slice(0,10);
+  const thisMonth=todayStr.slice(0,7);
+
+  // 今日やること
+  const todayWrap=document.getElementById('castTodayTasks');
+  if(todayWrap){
+    const myTasks=customerTasks.filter(t=>t.cast_id===currentUser?.id&&t.due_date===todayStr&&!t.is_done);
+    if(!myTasks.length){
+      todayWrap.innerHTML='<p class="note" style="text-align:center;padding:12px;">今日のタスクはありません 🎉</p>';
+    }else{
+      todayWrap.innerHTML=myTasks.map(t=>`<div class="task-item">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:13px;font-weight:800;">${TASK_LABELS[t.task_type]||escapeHtml(t.task_type)}</span>
+          <div style="display:flex;gap:6px;">
+            <span style="font-size:12px;color:var(--muted);">${customerNameById(t.customer_id)}</span>
+            <button class="btn primary small" onclick="toggleTask('${t.id}',true)">完了</button>
+          </div>
+        </div>
+        ${t.memo?`<div style="font-size:11px;color:var(--muted);margin-top:4px;">${escapeHtml(t.memo)}</div>`:''}
+      </div>`).join('');
+    }
+  }
+
+  // 自分の顧客
+  const myCustWrap=document.getElementById('castMyCustomers');
+  if(myCustWrap){
+    const myCusts=customers.filter(c=>c.primary_cast_id===currentUser?.id&&c.is_active!==false);
+    if(!myCusts.length){
+      myCustWrap.innerHTML='<p class="note" style="text-align:center;padding:12px;">担当顧客がいません</p>';
+    }else{
+      myCustWrap.innerHTML=myCusts.map(c=>{
+        const daysSince=c.last_visit_date?Math.floor((new Date(todayStr)-new Date(c.last_visit_date))/(1000*60*60*24)):999;
+        const alert=daysSince>=30?`<span class="no-visit-alert">${daysSince}日未来店</span>`:'';
+        return `<div class="customer-row" style="padding:10px 6px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-weight:800;">${escapeHtml(c.name)}</span>${alert}
+            <span style="font-size:12px;color:var(--muted);">${c.visit_count||0}回来店</span>
+          </div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px;">最終来店: ${c.last_visit_date||'なし'}${c.next_visit_date?'　次回予定: '+c.next_visit_date:''}</div>
+        </div>`;
+      }).join('');
+    }
+  }
+
+  // 来店予定
+  const upcomingWrap=document.getElementById('castUpcomingVisits');
+  if(upcomingWrap){
+    const myCustIds=new Set(customers.filter(c=>c.primary_cast_id===currentUser?.id).map(c=>c.id));
+    const upcoming=customers.filter(c=>c.next_visit_date&&c.next_visit_date>=todayStr&&c.next_visit_date<=next7Str&&myCustIds.has(c.id));
+    if(!upcoming.length){
+      upcomingWrap.innerHTML='<p class="note" style="text-align:center;padding:12px;">7日以内の来店予定はありません</p>';
+    }else{
+      upcomingWrap.innerHTML=upcoming.map(c=>`<div style="padding:10px 0;border-bottom:1px solid var(--border);">
+        <div style="display:flex;justify-content:space-between;">
+          <span style="font-weight:700;">${escapeHtml(c.name)}</span>
+          <span style="font-size:13px;color:var(--pink);font-weight:800;">${c.next_visit_date}</span>
+        </div>
+      </div>`).join('');
+    }
+  }
+
+  // KPI
+  const kpiWrap=document.getElementById('castSalesKpi');
+  if(kpiWrap&&currentUser){
+    const myVisits=visits.filter(v=>v.cast_id===currentUser.id&&v.visit_date&&v.visit_date.startsWith(thisMonth));
+    const mySales=myVisits.reduce((s,v)=>s+(v.sales_amount||0),0);
+    const myHon=myVisits.filter(v=>v.visit_type==='honshimei').length;
+    const myDrinks=myVisits.reduce((s,v)=>s+(v.drink_count||0),0);
+    const myFreeIds=new Set(visits.filter(v=>v.cast_id===currentUser.id&&v.visit_type==='free').map(v=>v.customer_id));
+    const convertedIds=new Set(visits.filter(v=>v.cast_id===currentUser.id&&(v.visit_type==='honshimei'||v.visit_type==='baai')).map(v=>v.customer_id));
+    const converted=[...myFreeIds].filter(id=>convertedIds.has(id));
+    const rate=myFreeIds.size>0?Math.round(converted.length/myFreeIds.size*100):0;
+    kpiWrap.innerHTML=`<div class="stats" style="grid-template-columns:1fr 1fr;">
+      <div class="stat"><div class="val">${yen(mySales)}</div><div class="lbl">今月売上</div></div>
+      <div class="stat"><div class="val">${myHon}</div><div class="lbl">本指名数</div></div>
+      <div class="stat"><div class="val">${myDrinks}</div><div class="lbl">ドリンク数</div></div>
+      <div class="stat"><div class="val">${rate}%</div><div class="lbl">フリー→指名転換</div></div>
+    </div>`;
+  }
+}
+
+// ================================================================
+// goTab拡張 & initAfterLogin拡張
+// ================================================================
+(function(){
+  const _goTab=goTab;
+  goTab=function(el,id){
+    _goTab(el,id);
+    if(id==='pgSales')loadSalesPage();
+    if(id==='pgCastSales')loadCastSalesPage();
+  };
+})();
+
+(function(){
+  const _afterLogin=afterLogin;
+  afterLogin=async function(){
+    await _afterLogin.apply(this,arguments);
+    await Promise.all([
+      sbLoadCustomers(),
+      sbLoadVisits(),
+      sbLoadTasks(),
+      sbLoadCalendarEvents(),
+    ]);
+    await generateAutoTasks();
+    // キャストの場合は営業ページ表示用にpgCastSalesをshowリストに追加
+    if(currentUser&&currentUser.role!=='admin'){
+      show('pgCastSales');
+    } else if(currentUser&&currentUser.role==='admin'){
+      show('pgSales');
+    }
   };
 })();
 </script>
