@@ -4813,7 +4813,6 @@ loadAdminTop=function(){
   const el=document.getElementById('aTopInner');
   if(!el)return;
   let alertHtml='';
-  if(ngCasts.length)  alertHtml+=`<div class="alert-banner danger" style="margin-bottom:8px;">🚨 稼働調整対象：${ngCasts.map(c=>c.name).join('、')}</div>`;
   if(warnCasts.length)alertHtml+=`<div class="alert-banner warn" style="margin-bottom:8px;">⚠️ シフト確認対象：${warnCasts.map(c=>c.name).join('、')}</div>`;
   if(alertHtml) el.innerHTML=alertHtml+el.innerHTML;
 };
