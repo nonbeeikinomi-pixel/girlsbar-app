@@ -246,13 +246,13 @@ td{padding:9px;border-bottom:1px solid var(--border);white-space:nowrap}
   <div class="tabs hidden" id="castTabs">
     <div class="tab on" onclick="goTab(this,'pgDash')">📊 ダッシュボード</div>
     <div class="tab" onclick="goTab(this,'pgDaily')">📝 日報入力</div>
+    <div class="tab" onclick="goTab(this,'pgCastSales')">💬 営業</div>
     <div class="tab" onclick="goTab(this,'pgHistory')">📅 履歴</div>
     <div class="tab" onclick="goTab(this,'pgGoals')">🎯 目標</div>
     <div class="tab" onclick="goTab(this,'pgMyPay')">💴 明細</div>
     <div class="tab" onclick="goTab(this,'pgShiftRequest')">📋 シフト提出</div>
     <div class="tab" onclick="goTab(this,'pgMyShift')">📅 確定シフト</div>
     <div class="tab" onclick="goTab(this,'pgMyContract')">📄 契約</div>
-    <div class="tab" onclick="goTab(this,'pgCastSales')">💬 営業</div>
   </div>
 
   <!-- 管理者タブ -->
@@ -375,6 +375,7 @@ td{padding:9px;border-bottom:1px solid var(--border);white-space:nowrap}
         <div class="fg"><label class="label">本指名目標</label><input type="number" id="gHon" class="inp"></div>
         <div class="fg"><label class="label">新規指名目標</label><input type="number" id="gShinki" class="inp"></div>
         <div class="fg"><label class="label">予定出勤数</label><input type="number" id="gShifts" class="inp"></div>
+        <div class="fg"><label class="label">ドリンク目標（杯）</label><input type="number" id="gDrink" class="inp"></div>
       </div>
       <button class="btn primary full" onclick="saveGoals()">目標を保存する</button>
     </div>
@@ -1501,6 +1502,7 @@ function loadDashboard(){
   const rateColorVal=payRateVal>=80?'#a32d2d':payRateVal>=60?'#7a4a0b':'#31640d';
   const rateBg=payRateVal>=80?'#fcebeb':payRateVal>=60?'#faeeda':'#eaf3de';
 
+  const drinkCups=calcMonthlyDrinkCups(currentUser.id,month());
   const pct=(a,b)=>b?Math.min(100,Math.round(a/b*100)):0;
   document.getElementById('dashInner').innerHTML=`
     <div class="stats">
@@ -1508,6 +1510,9 @@ function loadDashboard(){
         ${g.target_sales?`<div class="sub">${pct(sales,g.target_sales)}%</div><div class="bar"><div class="fill" style="width:${pct(sales,g.target_sales)}%"></div></div>`:''}
       </div>
       <div class="stat"><div class="val">${yen(totalDrink)}</div><div class="lbl">ドリンク売上</div></div>
+      <div class="stat"><div class="val">${fmtCups(drinkCups)}杯</div><div class="lbl">ドリンク数</div>
+        ${g.target_drink_count?`<div class="sub">${pct(drinkCups,g.target_drink_count)}%</div><div class="bar"><div class="fill" style="width:${pct(drinkCups,g.target_drink_count)}%"></div></div>`:''}
+      </div>
       <div class="stat"><div class="val">${hon}</div><div class="lbl">本指名</div>
         ${g.target_honshimei?`<div class="sub">${pct(hon,g.target_honshimei)}%</div>`:''}
       </div>
@@ -1601,9 +1606,10 @@ function loadGoalForm(){
   const g=demoGoals[currentUser.id]||{};
   set('gSales',g.target_sales||0);set('gHon',g.target_honshimei||0);
   set('gShinki',g.target_shinki||0);set('gShifts',g.target_shifts||0);
+  set('gDrink',g.target_drink_count||0);
 }
 async function saveGoals(){
-  const goal={target_sales:nv('gSales'),target_honshimei:nv('gHon'),target_shinki:nv('gShinki'),target_shifts:nv('gShifts')};
+  const goal={target_sales:nv('gSales'),target_honshimei:nv('gHon'),target_shinki:nv('gShinki'),target_shifts:nv('gShifts'),target_drink_count:nv('gDrink')};
   await sbSaveGoal(currentUser.id,goal);
   toast('✅ 目標を保存しました');
   initDailyForm();
@@ -2567,7 +2573,8 @@ async function loadAllGoals(){
   const{data}=await SB.get('monthly_goals',{filters:[['year_month','eq',m]]});
   if(data) data.forEach(g=>{demoGoals[g.cast_id]={
     target_sales:g.target_sales,target_honshimei:g.target_honshimei,
-    target_shinki:g.target_shinki,target_shifts:g.target_shifts
+    target_shinki:g.target_shinki,target_shifts:g.target_shifts,
+    target_drink_count:g.target_drink_count
   };});
 }
 async function sbSaveGoal(castId,goal){
