@@ -751,6 +751,11 @@ td{padding:9px;border-bottom:1px solid var(--border);white-space:nowrap}
         <div class="fg"><label class="label">保証時給（円）<br><small>全キャスト共通</small></label><input id="cfGuarantee" class="inp" type="number" value="0"></div>
         <div class="fg"><label class="label">出勤協力金（円）<br><small>1出勤あたり</small></label><input id="cfCoopFee" class="inp" type="number" value="0"></div>
       </div>
+      <!-- 固定費設定 -->
+      <div style="font-size:12px;font-weight:800;color:var(--pink);margin:14px 0 8px;">🏢 月次固定費（家賃・光熱費など）</div>
+      <p style="font-size:11px;color:var(--muted);margin-bottom:8px;">実質総コスト率の計算に使用します。項目を自由に追加できます。</p>
+      <div id="fixedCostList"></div>
+      <button type="button" class="btn outline small" onclick="addFixedCostRow()" style="margin-bottom:10px;">＋ 固定費を追加</button>
       <button class="btn gold full" onclick="saveStoreConfig()">店舗設定を保存</button>
     </div>
     <!-- ボトル設定 -->
@@ -853,7 +858,7 @@ const toast=t=>{const e=document.getElementById('toast');e.textContent=t;e.class
 
 let currentUser=null, bottleMasters=[], storeDailyReports=[];
 let drinkPrices={s:1000,m:1500,l:2000,shot:1500};
-let storeConfig={costRate:30, freeRate:100, guarantee:0, coopFee:0, monthTarget:0, operatingDays:25};
+let storeConfig={costRate:30, freeRate:100, guarantee:0, coopFee:0, monthTarget:0, operatingDays:25, fixedCosts:[]};
 
 // ── デモデータ初期値（localStorageに保存がなければこれを使う）──
 const DEMO_CASTS_DEFAULT=[];
@@ -910,11 +915,43 @@ function calcDailyTarget(){
   const dt=d>0?Math.ceil(t/d):0;
   set('cfDailyTarget',dt);
 }
+function renderFixedCostList(){
+  const list=storeConfig.fixedCosts||[];
+  const el=document.getElementById('fixedCostList');if(!el)return;
+  el.innerHTML=list.length?list.map((fc,i)=>`
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+      <input class="inp" type="text" id="fc_name_${i}" value="${escapeHtml(fc.name)}" placeholder="項目名（例：家賃）" style="flex:1;padding:6px;">
+      <input class="inp" type="number" id="fc_amt_${i}" value="${fc.amount||0}" min="0" style="width:110px;padding:6px;">
+      <span style="font-size:12px;color:var(--muted);">円/月</span>
+      <button type="button" class="btn danger small" onclick="removeFixedCostRow(${i})">－</button>
+    </div>`).join('')
+    :'<p style="font-size:12px;color:var(--muted);margin-bottom:8px;">固定費が未登録です</p>';
+}
+function addFixedCostRow(){
+  storeConfig.fixedCosts=storeConfig.fixedCosts||[];
+  storeConfig.fixedCosts.push({name:'',amount:0});
+  renderFixedCostList();
+}
+function removeFixedCostRow(i){
+  storeConfig.fixedCosts.splice(i,1);
+  renderFixedCostList();
+}
+function getFixedCostsFromUI(){
+  const costs=[];let i=0;
+  while(document.getElementById('fc_name_'+i)){
+    const name=document.getElementById('fc_name_'+i).value.trim();
+    const amount=Number(document.getElementById('fc_amt_'+i).value||0);
+    if(name) costs.push({name,amount});
+    i++;
+  }
+  return costs;
+}
 async function saveStoreConfig(){
   storeConfig={
     costRate:nv('cfCost'), freeRate:Number(v('cfFreeRate')),
     guarantee:nv('cfGuarantee'), coopFee:nv('cfCoopFee'),
-    monthTarget:nv('cfMonthTarget'), operatingDays:nv('cfOperatingDays')
+    monthTarget:nv('cfMonthTarget'), operatingDays:nv('cfOperatingDays'),
+    fixedCosts:getFixedCostsFromUI()
   };
   await sbSaveStoreConfig();
   toast('✅ 店舗設定を保存しました');
@@ -1003,14 +1040,18 @@ function calcMonthlyKPI(m){
   const totalRate=baseSales>0?Math.round(totalPay/baseSales*1000)/10:0;
   const costRate=baseSales>0?Math.round((totalPay+transport)/baseSales*1000)/10:0;
 
-  // 原価
+  // 原価（仕入・消耗品など変動費の概算）
   const genka=Math.round(baseSales*(storeConfig.costRate||30)/100);
-  // 予想利益
-  const profit=baseSales-totalPay-transport-genka;
+  // 月次固定費合計（家賃・光熱費など）
+  const totalFixedCosts=(storeConfig.fixedCosts||[]).reduce((s,x)=>s+(x.amount||0),0);
+  // 予想利益（人件費＋交通費＋原価＋固定費を差し引き）
+  const profit=baseSales-totalPay-transport-genka-totalFixedCosts;
+  // 実質総コスト率（人件費＋交通費＋固定費）/ 売上
+  const realCostRate=baseSales>0?Math.round((totalPay+transport+totalFixedCosts)/baseSales*1000)/10:0;
   // フリードリンク比率
   const freeDrinkRatio=baseSales>0?Math.round(freeDrinkSales/baseSales*1000)/10:0;
 
-  return{baseSales,fixedWage,totalPay,transport,fixedRate,totalRate,costRate,genka,profit,freeDrinkSales,honDrinkSales,freeDrinkRatio,totalDrinkAll:honDrinkSales+freeDrinkSales,totalDrinkRevenue:adminDrinkTotal};
+  return{baseSales,fixedWage,totalPay,transport,fixedRate,totalRate,costRate,genka,profit,totalFixedCosts,realCostRate,freeDrinkSales,honDrinkSales,freeDrinkRatio,totalDrinkAll:honDrinkSales+freeDrinkSales,totalDrinkRevenue:adminDrinkTotal};
 }
 
 
@@ -1494,17 +1535,17 @@ function loadAdminTop(){
         <div class="rc-sub">総支給 ${yen(kpi.totalPay)}</div>
         <div class="rc-sub">理想≦35% / 危険≧46%</div>
       </div>
-      <div class="rate-card ${rateColor(kpi.costRate,'cost')}">
+      <div class="rate-card ${rateColor(kpi.realCostRate,'cost')}">
         <div class="rc-lbl">実質総コスト率</div>
-        <div class="rc-val">${kpi.costRate}%</div>
-        <div class="rc-sub">コスト ${yen(kpi.totalPay+kpi.transport)}</div>
+        <div class="rc-val">${kpi.realCostRate}%</div>
+        <div class="rc-sub">人件費+固定費 ${yen(kpi.totalPay+kpi.transport+kpi.totalFixedCosts)}</div>
         <div class="rc-sub">理想≦40% / 危険≧51%</div>
       </div>
       <div class="rate-card" style="background:${profitBg};color:${profitColor};border-color:${profitColor}40">
         <div class="rc-lbl">予想利益</div>
         <div class="rc-val">${yen(kpi.profit)}</div>
         <div class="rc-sub">売上 ${yen(kpi.baseSales)}</div>
-        <div class="rc-sub">原価率 ${storeConfig.costRate}%</div>
+        <div class="rc-sub">固定費 ${yen(kpi.totalFixedCosts)} / 原価率 ${storeConfig.costRate}%</div>
       </div>
     </div>
 
@@ -1516,6 +1557,7 @@ function loadAdminTop(){
       <div class="stat"><div class="val" data-customer-unit="">${totalCustomers>0?yen(unitPrice):'—'}</div><div class="lbl">客単価<br><small style="font-weight:400;">売上÷客数</small></div></div>
       <div class="stat"><div class="val">${kpi.freeDrinkRatio}%</div><div class="lbl">フリードリンク比率<br><small style="font-weight:400;">(反映率${storeConfig.freeRate}%)</small></div></div>
       <div class="stat"><div class="val">${totalNom}</div><div class="lbl">指名数合計</div></div>
+      ${kpi.totalFixedCosts>0?`<div class="stat"><div class="val">${yen(kpi.totalFixedCosts)}</div><div class="lbl">月次固定費<br><small style="font-weight:400;">${(storeConfig.fixedCosts||[]).map(x=>escapeHtml(x.name)).join('・')}</small></div></div>`:''}
     </div>
 
     <!-- 日別客数入力 -->
@@ -1960,6 +2002,7 @@ function loadMgmt(){
     set('cfMonthTarget',storeConfig.monthTarget||0);
     set('cfOperatingDays',storeConfig.operatingDays||25);
     calcDailyTarget();
+    renderFixedCostList();
   }
   loadCastList();loadBottleList();
 }
