@@ -218,6 +218,38 @@ td{padding:9px;border-bottom:1px solid var(--border);white-space:nowrap}
 .sales-section{display:none;}.sales-section.on{display:block;}
 .no-visit-alert{background:#feeadb;border-radius:6px;padding:2px 6px;font-size:10px;color:#7a3a0b;display:inline-block;margin-left:4px;}
 @media(max-width:720px){.sales-cal-day{min-height:44px;}.sales-cal-day .sales-event-chip{font-size:8px;}}
+
+/* ===== ホーム画面 ===== */
+:root{--blue:#2563eb;--blue2:#eff6ff;--blue3:#1d4ed8;--blue-light:#bfdbfe}
+#pgHome{display:none;min-height:100vh;background:#f0f4f8;padding:0 0 80px;}
+#pgHome.on{display:block}
+.home-greeting{padding:20px 16px 8px;background:#fff;}
+.home-greeting-name{font-size:20px;font-weight:900;color:#1e293b;margin-bottom:2px;}
+.home-greeting-date{font-size:12px;color:#64748b;}
+.home-section-title{font-size:12px;font-weight:800;color:#64748b;letter-spacing:.06em;padding:16px 16px 8px;text-transform:uppercase;}
+.home-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:0 12px;}
+.home-card{background:#fff;border-radius:16px;padding:16px 10px 14px;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.06);border:1.5px solid #e2e8f0;transition:transform .12s,box-shadow .12s;text-align:center;position:relative;overflow:hidden;}
+.home-card:active{transform:scale(.96);box-shadow:0 1px 4px rgba(0,0,0,.08);}
+.home-card-icon{font-size:32px;line-height:1;margin-bottom:2px;}
+.home-card-name{font-size:12px;font-weight:800;color:#1e293b;line-height:1.3;}
+.home-card-desc{font-size:10px;color:#64748b;line-height:1.4;}
+.home-card-badge{position:absolute;top:8px;right:8px;background:#ef4444;color:#fff;font-size:9px;font-weight:800;border-radius:99px;padding:2px 6px;}
+.home-card.accent{background:linear-gradient(135deg,var(--blue),var(--blue3));border-color:var(--blue3);}
+.home-card.accent .home-card-name,.home-card.accent .home-card-desc{color:#fff;}
+.home-card.accent .home-card-icon{filter:drop-shadow(0 2px 4px rgba(0,0,0,.2));}
+.home-bottom-nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #e2e8f0;display:none;align-items:center;justify-content:space-around;padding:8px 0 env(safe-area-inset-bottom,8px);z-index:20;box-shadow:0 -4px 12px rgba(0,0,0,.06);}
+.home-bottom-nav.visible{display:flex;}
+.hbn-item{display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;padding:4px 12px;border-radius:10px;min-width:60px;}
+.hbn-item span:first-child{font-size:20px;line-height:1;}
+.hbn-item span:last-child{font-size:10px;font-weight:700;color:#64748b;}
+.hbn-item.active span:last-child{color:var(--blue);}
+#pgHome .home-header{background:linear-gradient(135deg,var(--blue),var(--blue3));padding:20px 16px 28px;color:#fff;position:relative;overflow:hidden;}
+#pgHome .home-header::after{content:'';position:absolute;right:-30px;bottom:-30px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,.08);}
+#pgHome .home-header::before{content:'';position:absolute;right:40px;bottom:10px;width:60px;height:60px;border-radius:50%;background:rgba(255,255,255,.06);}
+.home-header-logo{font-size:15px;font-weight:800;opacity:.85;margin-bottom:10px;}
+.home-header-name{font-size:22px;font-weight:900;margin-bottom:4px;}
+.home-header-role{display:inline-block;background:rgba(255,255,255,.2);border-radius:99px;padding:3px 10px;font-size:11px;font-weight:700;}
+@media(max-width:720px){#pgHome{display:none;}.on#pgHome{display:block;}}
 </style>
 </head>
 <body>
@@ -237,9 +269,19 @@ td{padding:9px;border-bottom:1px solid var(--border);white-space:nowrap}
 
 <!-- APP -->
 <div id="app" class="hidden">
-  <div class="header">
+  <div class="header" id="mainHeader">
     <div class="logo">✦ Girls Bar <span>Mgmt</span></div>
-    <div><span class="user" id="huser"></span><button class="btn outline small" onclick="doLogout()">ログアウト</button></div>
+    <div><button class="btn outline small" id="btnHome" onclick="goHome()" style="display:none;margin-right:6px;">🏠</button><span class="user" id="huser"></span><button class="btn outline small" onclick="doLogout()">ログアウト</button></div>
+  </div>
+
+  <!-- ===== ホーム画面 ===== -->
+  <div id="pgHome">
+    <div class="home-header">
+      <div class="home-header-logo">✦ Girls Bar Management</div>
+      <div class="home-header-name" id="homeUserName">ようこそ</div>
+      <div class="home-header-role" id="homeUserRole">スタッフ</div>
+    </div>
+    <div id="homeMenuInner"></div>
   </div>
 
   <!-- キャストタブ -->
@@ -1364,23 +1406,105 @@ async function afterLogin(){
     loadShiftData()
   ]);
   if(currentUser.role==='admin'){
-    hide('castTabs');show('adminTabs');
+    hide('castTabs');hide('adminTabs');
     document.querySelectorAll('.page').forEach(p=>p.classList.add('hidden'));
     show('pgAdminTop');show('pgAdminGraph');show('pgAdminPay');show('pgShiftMgmt');show('pgAdminContract');
-    document.getElementById('pgAdminTop').classList.add('on');
-    document.getElementById('pgAdminTop').classList.remove('hidden');
-    loadAdminTop();loadAdminCast();loadAdminDay();loadMgmt();
   }else{
-    show('castTabs');hide('adminTabs');show('pgMyPay');show('pgShiftRequest');show('pgMyShift');show('pgMyContract');
-    loadDashboard();loadHistory();loadGoalForm();
-    initDailyForm();
+    hide('castTabs');hide('adminTabs');
+    show('pgMyPay');show('pgShiftRequest');show('pgMyShift');show('pgMyContract');
   }
+  loadHome();
 }
 function doLogout(){location.reload();}
+
+function loadHome(){
+  hide('castTabs');hide('adminTabs');
+  document.querySelectorAll('.page').forEach(p=>{p.classList.remove('on');p.classList.add('hidden');});
+  document.getElementById('pgHome').classList.add('on');
+  document.getElementById('btnHome').style.display='none';
+  const nm=currentUser.name||currentUser.email||'';
+  document.getElementById('homeUserName').textContent=nm+'さん、こんにちは！';
+  document.getElementById('homeUserRole').textContent=currentUser.role==='admin'?'管理者':'スタッフ';
+  const isAdmin=currentUser.role==='admin';
+  const menus=isAdmin?[
+    {icon:'📊',name:'売上管理',desc:'日次・月次の売上を確認',page:'pgAdminTop',accent:true},
+    {icon:'🎯',name:'営業支援',desc:'顧客・来店・タスク管理',page:'pgSales'},
+    {icon:'📈',name:'グラフ',desc:'売上トレンドを可視化',page:'pgAdminGraph'},
+    {icon:'💃',name:'キャスト管理',desc:'スタッフ別成績・分析',page:'pgAdminCast'},
+    {icon:'📅',name:'日別レポート',desc:'日別売上・客数を確認',page:'pgAdminDay'},
+    {icon:'💴',name:'給与明細',desc:'キャスト別給与計算',page:'pgAdminPay'},
+    {icon:'🗓️',name:'シフト管理',desc:'シフト確定・勤怠管理',page:'pgShiftMgmt'},
+    {icon:'📄',name:'契約管理',desc:'契約書・ルール管理',page:'pgAdminContract'},
+    {icon:'⚙️',name:'店舗設定',desc:'ドリンク・バック率設定',page:'pgAdminMgmt'},
+  ]:[
+    {icon:'📊',name:'ダッシュボード',desc:'今月の実績・KPI確認',page:'pgDash',accent:true},
+    {icon:'📝',name:'日報入力',desc:'本日の売上を入力',page:'pgDaily'},
+    {icon:'💬',name:'営業',desc:'顧客・来店記録管理',page:'pgCastSales'},
+    {icon:'🎯',name:'目標設定',desc:'月間目標の設定',page:'pgGoals'},
+    {icon:'💴',name:'給与明細',desc:'自分の給与を確認',page:'pgMyPay'},
+    {icon:'📋',name:'シフト提出',desc:'希望シフトを提出',page:'pgShiftRequest'},
+    {icon:'📅',name:'確定シフト',desc:'確定シフトを確認',page:'pgMyShift'},
+    {icon:'📄',name:'契約・ルール',desc:'契約書・店舗ルール確認',page:'pgMyContract'},
+    {icon:'📅',name:'勤怠履歴',desc:'出勤・欠勤・遅刻履歴',page:'pgHistory'},
+  ];
+  document.getElementById('homeMenuInner').innerHTML=`
+    <div class="home-section-title">メニュー</div>
+    <div class="home-grid">
+      ${menus.map(m=>`
+        <div class="home-card${m.accent?' accent':''}" onclick="navTo('${m.page}')">
+          <div class="home-card-icon">${m.icon}</div>
+          <div class="home-card-name">${m.name}</div>
+          <div class="home-card-desc">${m.desc}</div>
+        </div>
+      `).join('')}
+    </div>`;
+}
+
+function goHome(){
+  loadHome();
+}
+
+function navTo(pageId){
+  const isAdmin=currentUser.role==='admin';
+  if(isAdmin){show('adminTabs');hide('castTabs');}
+  else{show('castTabs');hide('adminTabs');}
+  document.getElementById('btnHome').style.display='';
+  document.getElementById('pgHome').classList.remove('on');
+  // タブのonを設定
+  const tabBar=document.getElementById(isAdmin?'adminTabs':'castTabs');
+  tabBar.querySelectorAll('.tab').forEach(t=>{
+    t.classList.remove('on');
+    if(t.getAttribute('onclick')&&t.getAttribute('onclick').includes("'"+pageId+"'")){t.classList.add('on');}
+  });
+  document.querySelectorAll('.page').forEach(p=>{p.classList.remove('on');p.classList.add('hidden');});
+  const pg=document.getElementById(pageId);
+  if(pg){pg.classList.remove('hidden');pg.classList.add('on');}
+  // ページ固有のload処理
+  if(pageId==='pgAdminTop')loadAdminTop();
+  else if(pageId==='pgAdminGraph')loadAdminGraph();
+  else if(pageId==='pgAdminCast')loadAdminCast();
+  else if(pageId==='pgAdminDay')loadAdminDay();
+  else if(pageId==='pgAdminPay'){populatePayCastSel();loadPayroll();}
+  else if(pageId==='pgShiftMgmt')loadShiftMgmt();
+  else if(pageId==='pgAdminContract')loadAdminContract();
+  else if(pageId==='pgAdminMgmt')loadMgmt();
+  else if(pageId==='pgSales'){}
+  else if(pageId==='pgDash'){loadDashboard();}
+  else if(pageId==='pgDaily'){initDailyForm();}
+  else if(pageId==='pgHistory'){loadHistory();}
+  else if(pageId==='pgGoals'){loadGoalForm();}
+  else if(pageId==='pgMyPay'){loadMyPay();}
+  else if(pageId==='pgShiftRequest'){initShiftRequestPage();}
+  else if(pageId==='pgMyShift'){loadMyShift();}
+  else if(pageId==='pgMyContract'){loadMyContract();}
+  else if(pageId==='pgCastSales'){}
+}
 
 function goTab(el,id){
   el.parentElement.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
   el.classList.add('on');
+  document.getElementById('pgHome').classList.remove('on');
+  document.getElementById('btnHome').style.display='';
   document.querySelectorAll('.page').forEach(p=>{p.classList.remove('on');p.classList.add('hidden');});
   show(id);document.getElementById(id).classList.add('on');
   if(id==='pgAdminMgmt')loadMgmt(); if(id==='pgAdminContract'){loadAdminContract();} if(id==='pgMyContract')loadMyContract(); if(id==='pgShiftMgmt'){loadShiftMgmt();} if(id==='pgShiftRequest'){initShiftRequestPage();} if(id==='pgMyShift')loadMyShift(); if(id==='pgAdminGraph'){loadAdminGraph();}
