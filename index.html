@@ -879,6 +879,7 @@ drinkPrices       = lsGet('gb_drinkPrices',drinkPrices);
 storeConfig       = lsGet('gb_storeConfig',storeConfig);
 // キャスト個別のドリンクBK設定（Supabaseに列がない項目をlocalStorageで管理）
 let castBackSettings = lsGet('gb_castBackSettings', {});
+let storeDailyCustomers = lsGet('gb_dailyCustomers', {});
 
 // ── デモ保存関数（全データをlocalStorageに書き出す）──
 function saveDemoData(){
@@ -1012,6 +1013,28 @@ function calcMonthlyKPI(m){
   return{baseSales,fixedWage,totalPay,transport,fixedRate,totalRate,costRate,genka,profit,freeDrinkSales,honDrinkSales,freeDrinkRatio,totalDrinkAll:honDrinkSales+freeDrinkSales,totalDrinkRevenue:adminDrinkTotal};
 }
 
+
+// ================================================================
+// 客数・客単価
+// ================================================================
+function getMonthlyCustomers(m){
+  return Object.entries(storeDailyCustomers)
+    .filter(([d])=>d.startsWith(m))
+    .reduce((s,[,n])=>s+(n||0),0);
+}
+function saveDailyCustomer(date,count){
+  if(count>0) storeDailyCustomers[date]=count;
+  else delete storeDailyCustomers[date];
+  lsSet('gb_dailyCustomers',storeDailyCustomers);
+  const m=date.substring(0,7);
+  const total=getMonthlyCustomers(m);
+  const kpi=calcMonthlyKPI(m);
+  const unit=total>0?Math.round(kpi.baseSales/total):0;
+  const el=document.getElementById('customerKpiStats');
+  if(el) el.innerHTML=total>0?`合計 <b>${total}人</b> / 客単価 <b>${yen(unit)}</b>`:'客数を入力してください';
+  document.querySelectorAll('[data-customer-total]').forEach(e=>{e.textContent=total>0?total+'人':'—';});
+  document.querySelectorAll('[data-customer-unit]').forEach(e=>{e.textContent=total>0?yen(unit):'—';});
+}
 
 // ================================================================
 // ドリンク売上計算（キャスト別バック単価 × 杯数）
@@ -1391,6 +1414,9 @@ function loadAdminTop(){
   const kpi=calcMonthlyKPI(m);
 
   const totalNom=rows.reduce((s,r)=>s+totalNominated(r),0);
+  const totalCustomers=getMonthlyCustomers(m);
+  const unitPrice=totalCustomers>0?Math.round(kpi.baseSales/totalCustomers):0;
+  const reportDates=[...new Set(rows.map(r=>r.report_date))].sort();
 
   const castStats=demoCasts.filter(c=>c.is_active&&c.role!=='admin').map(c=>{
     const rs=rows.filter(r=>r.cast_id===c.id);
@@ -1484,8 +1510,27 @@ function loadAdminTop(){
     <div class="stats" style="margin-bottom:14px;">
       <div class="stat"><div class="val">${yen(kpi.baseSales)}</div><div class="lbl">総売上</div></div>
       <div class="stat"><div class="val">${yen(kpi.totalDrinkRevenue)}</div><div class="lbl">ドリンク売上<br><small style="font-weight:400;">顧客支払額</small></div></div>
+      <div class="stat"><div class="val" data-customer-total="">${totalCustomers>0?totalCustomers+'人':'—'}</div><div class="lbl">月間客数</div></div>
+      <div class="stat"><div class="val" data-customer-unit="">${totalCustomers>0?yen(unitPrice):'—'}</div><div class="lbl">客単価<br><small style="font-weight:400;">売上÷客数</small></div></div>
       <div class="stat"><div class="val">${kpi.freeDrinkRatio}%</div><div class="lbl">フリードリンク比率<br><small style="font-weight:400;">(反映率${storeConfig.freeRate}%)</small></div></div>
       <div class="stat"><div class="val">${totalNom}</div><div class="lbl">指名数合計</div></div>
+    </div>
+
+    <!-- 日別客数入力 -->
+    <div class="card" style="margin-bottom:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px;">
+        <div class="title" style="margin:0;">👥 日別客数</div>
+        <span id="customerKpiStats" style="font-size:12px;color:var(--muted);">${totalCustomers>0?`合計 <b>${totalCustomers}人</b> / 客単価 <b>${yen(unitPrice)}</b>`:'客数を入力してください'}</span>
+      </div>
+      ${reportDates.length?`
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:6px;">
+        ${reportDates.map(d=>`
+          <div style="display:flex;align-items:center;gap:6px;background:#f9f9f9;border-radius:8px;padding:6px 8px;">
+            <span style="font-size:12px;color:var(--muted);min-width:48px;">${d.substring(5)}</span>
+            <input type="number" class="inp" style="width:60px;padding:4px 6px;font-size:13px;" value="${storeDailyCustomers[d]||''}" min="0" placeholder="0" onchange="saveDailyCustomer('${d}',parseInt(this.value)||0)">
+            <span style="font-size:11px;color:var(--muted);">人</span>
+          </div>`).join('')}
+      </div>`:'<p class="note">この月の日報データがありません</p>'}
     </div>
 
     <!-- ランキング -->
