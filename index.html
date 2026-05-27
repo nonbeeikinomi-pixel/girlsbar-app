@@ -4008,6 +4008,8 @@ function getNextDrinkStep(totalCups,cast){
   return steps.find(s=>s.min>totalCups)||null;
 }
 
+function fmtCups(n){return parseFloat(n.toFixed(1));}
+
 // ── 月間ドリンク杯数（S+M+L+ショット、ボトル除く）──
 // S=0.85杯、M=1杯、L=1.25杯、ショット=1杯換算で段階判定用の月間杯数を計算
 function calcMonthlyDrinkCups(castId, m){
@@ -4062,14 +4064,19 @@ loadDashboard=function(){
       <div class="title">🍹 ドリンクバック状況</div>
       <div class="drink-step">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-          <span style="font-size:13px;font-weight:800;">今月 ${cups}杯</span>
-          <span style="font-size:18px;font-weight:900;color:var(--pink);">現在 ${rate}%</span>
+          <span style="font-size:13px;font-weight:800;">今月 ${fmtCups(cups)}杯</span>
+          ${cast.use_tiered_back
+            ?`<span style="font-size:18px;font-weight:900;color:var(--pink);">現在 ${rate}%</span>`
+            :`<span style="font-size:13px;font-weight:700;color:var(--pink);">固定バック</span>`}
         </div>
-        ${nextStep?`
-        <div class="step-bar"><div class="step-fill" style="width:${stepPct}%"></div></div>
-        <div style="font-size:12px;color:var(--muted);">
-          ${nextStep.min}杯まであと<b>${nextStep.min-cups}杯</b> → 達成で<b>${nextStep.rate}%</b>になります
-        </div>`:`<div style="font-size:12px;color:#31640d;font-weight:700;">🎉 最高バック率 ${rate}% 達成中！</div>`}
+        ${cast.use_tiered_back
+          ?(nextStep
+            ?`<div class="step-bar"><div class="step-fill" style="width:${stepPct}%"></div></div>
+               <div style="font-size:12px;color:var(--muted);">
+                 ${nextStep.min}杯まであと<b>${fmtCups(nextStep.min-cups)}杯</b> → 達成で<b>${nextStep.rate}%</b>になります
+               </div>`
+            :`<div style="font-size:12px;color:#31640d;font-weight:700;">🎉 最高バック率 ${rate}% 達成中！</div>`)
+          :`<div style="font-size:12px;color:var(--muted);">S${yen(cast.drink_back_s||0)} / M${yen(cast.drink_back_m||0)} / L${yen(cast.drink_back_l||0)} / Shot${yen(cast.shot_back||0)}</div>`}
       </div>
       <div style="background:${alert.level==='ng'?'#fcebeb':alert.level==='warn'?'#fdf3dc':'#eaf3de'};border-radius:10px;padding:10px 12px;">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
@@ -4122,7 +4129,9 @@ loadAdminCast=function(){
         <span class="${alert.color}" style="font-size:13px;font-weight:700;">${shifts}回出勤</span>
         ${alert.msg?`<div style="font-size:11px;width:100%;" class="${alert.color}">${alert.msg}</div>`:''}
         <div style="margin-left:auto;font-size:12px;color:var(--muted);">
-          ドリンク${cups}杯 / バック${rate}%${nextStep?` / あと${nextStep.min-cups}杯で${nextStep.rate}%`:'(MAX)'}
+          ${c.use_tiered_back
+            ?`ドリンク${fmtCups(cups)}杯 / バック${rate}%${nextStep?` / あと${fmtCups(nextStep.min-cups)}杯で${nextStep.rate}%`:'(MAX)'}`
+            :`ドリンク${fmtCups(cups)}杯 / 固定 S${yen(c.drink_back_s||0)} M${yen(c.drink_back_m||0)} L${yen(c.drink_back_l||0)}`}
         </div>
       </div>`).join('')}
   </div>`;
