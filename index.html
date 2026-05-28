@@ -201,26 +201,26 @@ td{padding:9px;border-bottom:1px solid rgba(255,255,255,0.05);white-space:nowrap
 .ra-step-item.active{color:#c9a227;border-bottom-color:#c9a227;font-weight:700;}
 .ra-step-item.done{color:#555;border-bottom-color:#444;}
 .ra-body{width:100%;max-width:680px;padding:16px;flex:1;box-sizing:border-box;overflow-x:hidden;}
-.ra-card{background:#111;border:1px solid #2a2a2a;border-radius:16px;padding:16px;margin-bottom:16px;box-sizing:border-box;overflow:hidden;}
-.ra-title{font-size:16px;font-weight:800;color:#c9a227;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
-.ra-pdf-frame{width:100%;height:75vh;border:none;border-radius:10px;background:#1a1a1a;display:block;max-width:100%;}
-.ra-pdf-placeholder{width:100%;height:55vh;border:1px solid #2a2a2a;border-radius:10px;background:#111;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#555;font-size:14px;gap:12px;}
-.ra-checklist{display:flex;flex-direction:column;gap:12px;}
-.ra-check-item{display:flex;align-items:flex-start;gap:12px;padding:14px;background:#0d0d0d;border:1px solid #222;border-radius:10px;cursor:pointer;transition:border-color .2s;}
-.ra-check-item.checked{border-color:#c9a227;background:#0f0e00;}
+.ra-card{background:#f9f9f9;border:1px solid #ddd;border-radius:16px;padding:16px;margin-bottom:16px;box-sizing:border-box;overflow:hidden;color:#1a1a2e;}
+.ra-title{font-size:16px;font-weight:800;color:#9a7010;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.ra-pdf-frame{width:100%;height:75vh;border:none;border-radius:10px;background:#fff;display:block;max-width:100%;}
+.ra-pdf-placeholder{width:100%;height:55vh;border:1px solid #ddd;border-radius:10px;background:#f0f0f0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#999;font-size:14px;gap:12px;}
+.ra-checklist{display:flex;flex-direction:column;gap:10px;}
+.ra-check-item{display:flex;align-items:flex-start;gap:12px;padding:14px;background:#fff;border:1.5px solid #ddd;border-radius:10px;cursor:pointer;transition:border-color .2s;}
+.ra-check-item.checked{border-color:#c9a227;background:#fffbe8;}
 .ra-check-item input[type=checkbox]{width:20px;height:20px;accent-color:#c9a227;flex-shrink:0;margin-top:1px;cursor:pointer;}
-.ra-check-label{font-size:14px;color:#ccc;line-height:1.5;}
-.ra-check-item.checked .ra-check-label{color:#e8d080;}
+.ra-check-label{font-size:14px;color:#1a1a2e;line-height:1.5;}
+.ra-check-item.checked .ra-check-label{color:#7a5a00;}
 .ra-sign-area{display:flex;flex-direction:column;gap:14px;}
-.ra-inp{width:100%;background:#0d0d0d;border:1px solid #333;border-radius:8px;padding:10px 14px;color:#e8e8e8;font-size:14px;outline:none;box-sizing:border-box;}
-.ra-inp:focus{border-color:#c9a227;}
+.ra-inp{width:100%;background:#fff;border:1.5px solid #ccc;border-radius:8px;padding:10px 14px;color:#1a1a2e;font-size:14px;outline:none;box-sizing:border-box;}
+.ra-inp:focus{border-color:#c9a227;outline:2px solid rgba(201,162,39,0.2);}
 .ra-canvas{width:100%;height:160px;background:#fff;border:2px solid #c9a227;border-radius:10px;touch-action:none;display:block;}
-.ra-label{font-size:12px;color:#888;margin-bottom:6px;letter-spacing:.05em;}
+.ra-label{font-size:12px;color:#666;margin-bottom:6px;letter-spacing:.05em;font-weight:600;}
 .ra-btn{width:100%;padding:14px;border:none;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer;transition:all .2s;}
 .ra-btn.gold{background:linear-gradient(135deg,#c9a227,#e8c84a);color:#0a0a0a;}
 .ra-btn.gold:hover{background:linear-gradient(135deg,#b8911e,#d4b43a);}
-.ra-btn.gold:disabled{background:#333;color:#666;cursor:not-allowed;}
-.ra-btn.outline{background:transparent;border:1px solid #333;color:#888;}
+.ra-btn.gold:disabled{background:#ccc;color:#888;cursor:not-allowed;}
+.ra-btn.outline{background:#fff;border:1.5px solid #ccc;color:#555;}
 .ra-version-badge{display:inline-block;background:#1a1500;border:1px solid #c9a227;color:#c9a227;font-size:11px;padding:2px 8px;border-radius:99px;margin-left:8px;}
 /* 管理側 ルール同意一覧 */
 #ctRuleAgreements .ra-admin-row{display:grid;grid-template-columns:1fr 1fr 80px 90px;gap:8px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--glass-border);font-size:13px;color:var(--text);}
@@ -5765,7 +5765,7 @@ function renderRuleStep1Html(ver){
     :'<div class="ra-pdf-placeholder"><div style="font-size:40px;">📄</div><div>店舗ルールPDFが設定されていません</div><div style="font-size:12px;color:#444;">管理者がPDF URLを設定してください</div></div>';
   return '<div class="ra-card" style="padding:16px 12px;">'
     +'<div class="ra-title">📄 店舗ルール確認 <span class="ra-version-badge">v'+ver+'</span></div>'
-    +'<div style="font-size:13px;color:#888;margin-bottom:12px;">下記のPDFをお読みください。読み終えたら「確認しました」を押してください。</div>'
+    +'<div style="font-size:13px;color:#444;margin-bottom:12px;">下記のPDFをお読みください。読み終えたら「確認しました」を押してください。</div>'
     +pdfArea
     +'</div>'
     +'<button class="ra-btn gold" onclick="_ruleStep=2;renderRuleStep()">PDFを確認しました →</button>';
@@ -5788,7 +5788,7 @@ function renderRuleStep2Html(){
   }).join('');
   return '<div class="ra-card">'
     +'<div class="ra-title">✅ 同意確認</div>'
-    +'<div style="font-size:13px;color:#888;margin-bottom:14px;">以下の項目をすべて確認してチェックしてください。</div>'
+    +'<div style="font-size:13px;color:#444;margin-bottom:14px;">以下の項目をすべて確認してチェックしてください。</div>'
     +'<div class="ra-checklist">'+checks+'</div>'
     +'</div>'
     +'<button class="ra-btn gold" id="raNextBtn" disabled onclick="if(checkAllRaChecks())(_ruleStep=3,renderRuleStep())">すべて同意して次へ →</button>';
