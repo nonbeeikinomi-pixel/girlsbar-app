@@ -3039,6 +3039,10 @@ async function loadStoreConfig(){
     if(row.config_key==='main')      Object.assign(storeConfig,row.config_value);
     if(row.config_key==='drinkPrices') Object.assign(drinkPrices,row.config_value);
     if(row.config_key==='shiftSettings') Object.assign(shiftSettings,row.config_value);
+    if(row.config_key==='ruleSettings'){
+      if(row.config_value.pdfUrl!==undefined) setRulePdfUrl(row.config_value.pdfUrl);
+      if(row.config_value.ruleVersion!==undefined) setRuleVersion(row.config_value.ruleVersion);
+    }
   });
 }
 async function sbSaveStoreConfig(){
@@ -5898,6 +5902,11 @@ function updateRuleVersion(){
   if(!newVer){toast('バージョンを入力してください');return;}
   if(!confirm('バージョンを v'+newVer+' に更新すると、全キャストが再同意必須になります。よろしいですか？'))return;
   setRuleVersion(newVer);
+  if(!isDemo()){
+    SB.upsert('store_config',{config_key:'ruleSettings',
+      config_value:{pdfUrl:getRulePdfUrl(),ruleVersion:newVer},
+      updated_at:new Date().toISOString()},'config_key');
+  }
   renderRuleAgreementsAdmin();
   toast('✅ ルールバージョンを v'+newVer+' に更新しました');
 }
@@ -5905,6 +5914,11 @@ function updateRuleVersion(){
 function saveRulePdfUrl(){
   const url=document.getElementById('raPdfUrl').value.trim();
   setRulePdfUrl(url);
+  if(!isDemo()){
+    SB.upsert('store_config',{config_key:'ruleSettings',
+      config_value:{pdfUrl:url,ruleVersion:getRuleVersion()},
+      updated_at:new Date().toISOString()},'config_key');
+  }
   toast('✅ PDFのURLを保存しました');
 }
 
