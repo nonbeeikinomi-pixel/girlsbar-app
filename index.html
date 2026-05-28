@@ -628,28 +628,6 @@ td{padding:9px;border-bottom:1px solid var(--border);white-space:nowrap}
       <div id="smNextDeadlines"></div>
     </div>
 
-    <!-- 必要人数設定 -->
-    <div class="card">
-      <div class="title">⚙️ 曜日別 必要人数設定</div>
-      <div class="dow-grid">
-        <div><div style="text-align:center;font-size:11px;color:var(--muted);margin-bottom:4px;">月</div><input type="number" id="reqMon" class="inp" value="2" min="0"><input type="number" id="lreqMon" class="inp" value="1" min="0" style="margin-top:4px;" placeholder="LAST"></div>
-        <div><div style="text-align:center;font-size:11px;color:var(--muted);margin-bottom:4px;">火</div><input type="number" id="reqTue" class="inp" value="2" min="0"><input type="number" id="lreqTue" class="inp" value="1" min="0" style="margin-top:4px;" placeholder="LAST"></div>
-        <div><div style="text-align:center;font-size:11px;color:var(--muted);margin-bottom:4px;">水</div><input type="number" id="reqWed" class="inp" value="2" min="0"><input type="number" id="lreqWed" class="inp" value="1" min="0" style="margin-top:4px;" placeholder="LAST"></div>
-        <div><div style="text-align:center;font-size:11px;color:var(--muted);margin-bottom:4px;">木</div><input type="number" id="reqThu" class="inp" value="3" min="0"><input type="number" id="lreqThu" class="inp" value="1" min="0" style="margin-top:4px;" placeholder="LAST"></div>
-        <div><div style="text-align:center;font-size:11px;color:var(--pink);margin-bottom:4px;">金</div><input type="number" id="reqFri" class="inp" value="5" min="0"><input type="number" id="lreqFri" class="inp" value="2" min="0" style="margin-top:4px;" placeholder="LAST"></div>
-        <div><div style="text-align:center;font-size:11px;color:#3b82f6;margin-bottom:4px;">土</div><input type="number" id="reqSat" class="inp" value="5" min="0"><input type="number" id="lreqSat" class="inp" value="2" min="0" style="margin-top:4px;" placeholder="LAST"></div>
-        <div><div style="text-align:center;font-size:11px;color:#f59e0b;margin-bottom:4px;">日</div><input type="number" id="reqSun" class="inp" value="3" min="0"><input type="number" id="lreqSun" class="inp" value="1" min="0" style="margin-top:4px;" placeholder="LAST"></div>
-      </div>
-      <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">上段：必要人数　下段：LAST必要人数</div>
-      <button class="btn gold full" onclick="saveShiftSettings()">設定を保存</button>
-    </div>
-
-    <!-- 不足チェック -->
-    <div class="card" id="smShortageCard" style="display:none;">
-      <div class="title">⚠️ 人数不足チェック</div>
-      <div id="smShortageList"></div>
-    </div>
-
     <!-- 日別シフト -->
     <div id="smDailyCards"></div>
 
