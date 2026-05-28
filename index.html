@@ -1095,6 +1095,8 @@ td{padding:9px;border-bottom:1px solid rgba(255,255,255,0.05);white-space:nowrap
 // ================================================================
 const SB_URL='https://mvbtocxplpjwmjecmzey.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im12YnRvY3hwbHBqd21qZWNtemV5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgxMzgxMDksImV4cCI6MjA5MzcxNDEwOX0.fgbwmK21tjl-xNmzPsedJaAdS319P7pRrR3brTrrddE';
+// 店舗設定を保存するシステムレコードのID（castsテーブル）
+const STORE_SETTINGS_CAST_ID='00000000-0000-0000-0000-000000000001';
 const isDemo=()=>SB_URL.includes('YOUR_')||SB_KEY.includes('YOUR_');
 
 const fmt=n=>Number(n||0).toLocaleString();
@@ -1451,6 +1453,7 @@ async function afterLogin(){
     sbLoadAttendanceEvents(),
     loadBottleMasters(),
     loadStoreConfig(),
+    loadRuleSettings(),
     loadPayRecords(),
     loadShiftData()
   ]);
@@ -3039,10 +3042,6 @@ async function loadStoreConfig(){
     if(row.config_key==='main')      Object.assign(storeConfig,row.config_value);
     if(row.config_key==='drinkPrices') Object.assign(drinkPrices,row.config_value);
     if(row.config_key==='shiftSettings') Object.assign(shiftSettings,row.config_value);
-    if(row.config_key==='ruleSettings'){
-      if(row.config_value.pdfUrl!==undefined) setRulePdfUrl(row.config_value.pdfUrl);
-      if(row.config_value.ruleVersion!==undefined) setRuleVersion(row.config_value.ruleVersion);
-    }
   });
 }
 async function sbSaveStoreConfig(){
@@ -5707,17 +5706,23 @@ function needsRuleAgreement(castId){
   return !ruleAgreements.some(function(a){return a.cast_id===castId&&a.rule_version===ver;});
 }
 
+async function loadRuleSettings(){
+  if(isDemo())return;
+  const{data}=await SB.get('casts',{filters:[['id','eq',STORE_SETTINGS_CAST_ID]],select:'custom_drink_tiers'});
+  if(data&&data.length&&data[0].custom_drink_tiers){
+    const rs=data[0].custom_drink_tiers;
+    if(rs.pdfUrl!==undefined) setRulePdfUrl(rs.pdfUrl);
+    if(rs.ruleVersion!==undefined) setRuleVersion(rs.ruleVersion);
+  }
+}
+async function saveRuleSettingsToCasts(){
+  if(isDemo())return;
+  await SB.upsert('casts',{id:STORE_SETTINGS_CAST_ID,name:'__store_settings__',email:'system@internal',role:'admin',is_active:false,password_hash:'',custom_drink_tiers:{pdfUrl:getRulePdfUrl(),ruleVersion:getRuleVersion()}},'id');
+}
 async function showRuleAgreementModal(){
   _ruleStep=1;
   // モーダル表示直前にSupabaseからルール設定を再取得（デバイス間で共有）
-  if(!isDemo()){
-    const{data}=await SB.get('store_config',{filters:[['config_key','eq','ruleSettings']]});
-    if(data&&data.length&&data[0].config_value){
-      const rs=data[0].config_value;
-      if(rs.pdfUrl!==undefined) setRulePdfUrl(rs.pdfUrl);
-      if(rs.ruleVersion!==undefined) setRuleVersion(rs.ruleVersion);
-    }
-  }
+  await loadRuleSettings();
   let el=document.getElementById('ruleAgreementOverlay');
   if(el)el.remove();
   el=document.createElement('div');
@@ -5906,28 +5911,20 @@ function previewRuleSig(castId,ver){
   document.body.appendChild(m);
 }
 
-function updateRuleVersion(){
+async function updateRuleVersion(){
   const newVer=document.getElementById('raVersionInput').value.trim();
   if(!newVer){toast('バージョンを入力してください');return;}
   if(!confirm('バージョンを v'+newVer+' に更新すると、全キャストが再同意必須になります。よろしいですか？'))return;
   setRuleVersion(newVer);
-  if(!isDemo()){
-    SB.upsert('store_config',{config_key:'ruleSettings',
-      config_value:{pdfUrl:getRulePdfUrl(),ruleVersion:newVer},
-      updated_at:new Date().toISOString()},'config_key');
-  }
+  await saveRuleSettingsToCasts();
   renderRuleAgreementsAdmin();
   toast('✅ ルールバージョンを v'+newVer+' に更新しました');
 }
 
-function saveRulePdfUrl(){
+async function saveRulePdfUrl(){
   const url=document.getElementById('raPdfUrl').value.trim();
   setRulePdfUrl(url);
-  if(!isDemo()){
-    SB.upsert('store_config',{config_key:'ruleSettings',
-      config_value:{pdfUrl:url,ruleVersion:getRuleVersion()},
-      updated_at:new Date().toISOString()},'config_key');
-  }
+  await saveRuleSettingsToCasts();
   toast('✅ PDFのURLを保存しました');
 }
 
