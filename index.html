@@ -916,6 +916,7 @@ td{padding:9px;border-bottom:1px solid rgba(255,255,255,0.05);white-space:nowrap
       <input type="hidden" id="editCastId">
       <div class="grid2">
         <div class="fg"><label class="label">名前</label><input id="editCastName" class="inp readonly" readonly></div>
+        <div class="fg"><label class="label">ログインメールアドレス</label><input id="editCastEmail" class="inp" type="email" placeholder="メールアドレス"></div>
         <div class="fg"><label class="label">在籍区分</label>
           <select id="editMemberType" class="inp">
             <option value="regular">レギュラー（週5以上）</option>
@@ -2397,6 +2398,7 @@ function openEditWageById(id){
 function openEditWage(c){
   show('editWagePanel');
   set('editCastId',c.id);set('editCastName',c.name);
+  set('editCastEmail',c.email||'');
   set('editMemberType',c.member_type||'semi');
   set('editWageBefore20',c.hourly_wage_before_20||0);
   set('editWageBefore22',c.hourly_wage_before_22||0);set('editWageAfter22',c.hourly_wage_after_22||0);
@@ -2476,7 +2478,13 @@ async function saveWage(){
     const edshot=Math.round(drinkPrices.shot * nv('editShotBack') / 100);
     const useTiered=document.querySelector('input[name="editDrinkMode"]:checked')?.value==='tiered';
     const customTiers=useTiered?getEditTiersFromUI():null;
+    const newEmail=v('editCastEmail').trim();
+    if(newEmail&&newEmail!==c.email){
+      const dup=demoCasts.find(x=>x.id!==c.id&&x.email===newEmail);
+      if(dup){toast('❌ このメールアドレスはすでに使用されています');return;}
+    }
     Object.assign(c,{
+      email:newEmail||c.email,
       member_type:v('editMemberType')||'semi',
       hourly_wage_before_20:nv('editWageBefore20'),
       hourly_wage_before_22:nv('editWageBefore22'),
