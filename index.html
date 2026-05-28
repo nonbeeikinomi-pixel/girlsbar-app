@@ -14,6 +14,10 @@
 .tabs{position:sticky;top:48px;z-index:9;display:flex;overflow-x:auto;background:var(--white);border-bottom:1px solid var(--border)}
 .tab{padding:12px 10px;min-width:80px;flex:1;text-align:center;font-size:12px;color:var(--muted);font-weight:700;border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap}
 .tab.on{color:var(--pink);border-bottom-color:var(--pink)}
+@media(max-width:720px){
+  .tabs{flex-wrap:wrap;overflow-x:visible;position:sticky;}
+  .tab{min-width:0;flex:1 1 33%;padding:9px 4px;font-size:10px;border-bottom:2px solid transparent;}
+}
 .page{display:none;padding:14px;max-width:1100px;margin:auto}.page.on{display:block}
 .card{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:12px;box-shadow:0 4px 14px rgba(212,83,126,.05)}
 .title{font-size:15px;font-weight:800;color:var(--pink);margin-bottom:12px}
@@ -3346,22 +3350,48 @@ function loadMyPay(){
       </div>
       <div style="background:var(--pink2);border-radius:12px;padding:14px;">
         <div style="font-size:13px;font-weight:800;color:var(--pink);margin-bottom:10px;">📊 月間明細</div>
-        <table style="width:100%;font-size:13px;">
-          <tr><td>時給給与</td><td class="num" style="font-weight:700">${yen(p.tHourly)}</td></tr>
-          <tr><td>ドリンクバック</td><td class="num" style="font-weight:700">${yen(p.tDrink)}</td></tr>
-          <tr><td>同伴バック</td><td class="num" style="font-weight:700">${yen(p.tDohan)}</td></tr>
-          <tr><td>ボトルバック</td><td class="num" style="font-weight:700">${yen(p.tBottle)}</td></tr>
-          <tr style="border-top:1px solid var(--border);font-weight:900;"><td>支給合計</td><td class="num">${yen(p.gross)}</td></tr>
-          ${p.fine?`<tr><td style="color:#df4a49">業務遂行違反による損害補填</td><td class="num" style="color:#df4a49">－${yen(p.fine)}</td></tr>`:''}
-          ${p.dailyPay?`<tr><td style="color:#df4a49">日払い</td><td class="num" style="color:#df4a49">－${yen(p.dailyPay)}</td></tr>`:''}
-          ${p.dailyPayFee?`<tr><td style="color:#df4a49">日払い手数料(10%)</td><td class="num" style="color:#df4a49">－${yen(p.dailyPayFee)}</td></tr>`:''}
-          ${p.transport?`<tr><td style="color:#df4a49">送迎控除</td><td class="num" style="color:#df4a49">－${yen(p.transport)}</td></tr>`:''}
-          <tr><td style="color:#df4a49">源泉徴収(10.21%)</td><td class="num" style="color:#df4a49">－${yen(p.withholding)}</td></tr>
-          <tr style="border-top:1px solid var(--border);font-weight:900;"><td style="color:#df4a49">控除合計</td><td class="num" style="color:#df4a49">－${yen(p.totalDeduct+p.withholding)}</td></tr>
-        </table>
+        <div style="display:flex;flex-direction:column;gap:0;">
+          ${[
+            {label:'時給給与',val:yen(p.tHourly),bold:true},
+            {label:'ドリンクバック',val:yen(p.tDrink),bold:true},
+            {label:'同伴バック',val:yen(p.tDohan),bold:true},
+            {label:'ボトルバック',val:yen(p.tBottle),bold:true},
+          ].map(r=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid rgba(212,83,126,.12);">
+            <span style="font-size:12px;color:var(--text);">${r.label}</span>
+            <span style="font-size:13px;font-weight:${r.bold?800:700};white-space:nowrap;margin-left:8px;">${r.val}</span>
+          </div>`).join('')}
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:2px solid rgba(212,83,126,.3);font-weight:900;">
+            <span style="font-size:13px;">支給合計</span>
+            <span style="font-size:14px;white-space:nowrap;margin-left:8px;">${yen(p.gross)}</span>
+          </div>
+          ${p.fine?`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid rgba(212,83,126,.12);">
+            <span style="font-size:11px;color:#df4a49;flex:1;">損害補填</span>
+            <span style="font-size:13px;color:#df4a49;white-space:nowrap;margin-left:8px;">－${yen(p.fine)}</span>
+          </div>`:''}
+          ${p.dailyPay?`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid rgba(212,83,126,.12);">
+            <span style="font-size:12px;color:#df4a49;">日払い</span>
+            <span style="font-size:13px;color:#df4a49;white-space:nowrap;margin-left:8px;">－${yen(p.dailyPay)}</span>
+          </div>`:''}
+          ${p.dailyPayFee?`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid rgba(212,83,126,.12);">
+            <span style="font-size:12px;color:#df4a49;">日払い手数料(10%)</span>
+            <span style="font-size:13px;color:#df4a49;white-space:nowrap;margin-left:8px;">－${yen(p.dailyPayFee)}</span>
+          </div>`:''}
+          ${p.transport?`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid rgba(212,83,126,.12);">
+            <span style="font-size:12px;color:#df4a49;">送迎控除</span>
+            <span style="font-size:13px;color:#df4a49;white-space:nowrap;margin-left:8px;">－${yen(p.transport)}</span>
+          </div>`:''}
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid rgba(212,83,126,.12);">
+            <span style="font-size:12px;color:#df4a49;">源泉徴収(10.21%)</span>
+            <span style="font-size:13px;color:#df4a49;white-space:nowrap;margin-left:8px;">－${yen(p.withholding)}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:2px solid rgba(212,83,126,.3);font-weight:900;">
+            <span style="font-size:13px;color:#df4a49;">控除合計</span>
+            <span style="font-size:14px;color:#df4a49;white-space:nowrap;margin-left:8px;">－${yen(p.totalDeduct+p.withholding)}</span>
+          </div>
+        </div>
         <div style="margin-top:12px;padding:12px;background:#fff;border-radius:10px;display:flex;justify-content:space-between;align-items:center;">
           <div style="font-size:14px;font-weight:800;">お支払い金額</div>
-          <div style="font-size:30px;font-weight:900;color:var(--dark);">${yen(p.finalPay)}</div>
+          <div style="font-size:28px;font-weight:900;color:var(--dark);white-space:nowrap;">${yen(p.finalPay)}</div>
         </div>
       </div>
     </div>`;
