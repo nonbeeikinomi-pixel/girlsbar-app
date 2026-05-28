@@ -5707,8 +5707,17 @@ function needsRuleAgreement(castId){
   return !ruleAgreements.some(function(a){return a.cast_id===castId&&a.rule_version===ver;});
 }
 
-function showRuleAgreementModal(){
+async function showRuleAgreementModal(){
   _ruleStep=1;
+  // モーダル表示直前にSupabaseからルール設定を再取得（デバイス間で共有）
+  if(!isDemo()){
+    const{data}=await SB.get('store_config',{filters:[['config_key','eq','ruleSettings']]});
+    if(data&&data.length&&data[0].config_value){
+      const rs=data[0].config_value;
+      if(rs.pdfUrl!==undefined) setRulePdfUrl(rs.pdfUrl);
+      if(rs.ruleVersion!==undefined) setRuleVersion(rs.ruleVersion);
+    }
+  }
   let el=document.getElementById('ruleAgreementOverlay');
   if(el)el.remove();
   el=document.createElement('div');
@@ -5930,7 +5939,7 @@ function saveRulePdfUrl(){
     if(currentUser&&currentUser.role!=='admin'){
       await loadRuleAgreements();
       if(needsRuleAgreement(currentUser.id)){
-        showRuleAgreementModal();
+        await showRuleAgreementModal();
       }
     }
     return result;
