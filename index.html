@@ -190,7 +190,7 @@ td{padding:9px;border-bottom:1px solid rgba(255,255,255,0.05);white-space:nowrap
 .todo-check{width:24px;height:24px;border-radius:50%;border:2px solid var(--glass-border);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:13px}
 .todo-check.done{background:var(--gold);border-color:var(--gold);color:#080810}
 .todo-check.pending{background:#f59e0b;border-color:#f59e0b;color:#080810}
-.sign-canvas{border:2px solid var(--glass-border);border-radius:10px;width:100%;height:150px;touch-action:none;background:rgba(255,255,255,0.03)}
+.sign-canvas{border:2px solid var(--gold);border-radius:10px;width:100%;height:150px;touch-action:none;background:#fff;}
 /* ===== 店舗ルール同意モーダル ===== */
 #ruleAgreementOverlay{position:fixed;inset:0;background:#080808;z-index:9999;display:flex;flex-direction:column;align-items:center;overflow-y:auto;overflow-x:hidden;box-sizing:border-box;}
 .ra-header{width:100%;max-width:680px;padding:20px 16px 0;text-align:center;box-sizing:border-box;}
@@ -214,7 +214,7 @@ td{padding:9px;border-bottom:1px solid rgba(255,255,255,0.05);white-space:nowrap
 .ra-sign-area{display:flex;flex-direction:column;gap:14px;}
 .ra-inp{width:100%;background:#0d0d0d;border:1px solid #333;border-radius:8px;padding:10px 14px;color:#e8e8e8;font-size:14px;outline:none;box-sizing:border-box;}
 .ra-inp:focus{border-color:#c9a227;}
-.ra-canvas{width:100%;height:160px;background:#0d0d0d;border:1px solid #333;border-radius:10px;touch-action:none;display:block;}
+.ra-canvas{width:100%;height:160px;background:#fff;border:2px solid #c9a227;border-radius:10px;touch-action:none;display:block;}
 .ra-label{font-size:12px;color:#888;margin-bottom:6px;letter-spacing:.05em;}
 .ra-btn{width:100%;padding:14px;border:none;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer;transition:all .2s;}
 .ra-btn.gold{background:linear-gradient(135deg,#c9a227,#e8c84a);color:#0a0a0a;}
@@ -5618,6 +5618,7 @@ var signCtx=null,signDrawing=false,signLastX=0,signLastY=0;
 function initSignCanvas(){
   var canvas=document.getElementById('signCanvas');if(!canvas)return;
   signCtx=canvas.getContext('2d');
+  signCtx.fillStyle='#fff';signCtx.fillRect(0,0,canvas.width,canvas.height);
   signCtx.strokeStyle='#1a1a2e';signCtx.lineWidth=2.5;signCtx.lineCap='round';
   function getPos(e){var r=canvas.getBoundingClientRect();var t=e.touches?e.touches[0]:e;return{x:(t.clientX-r.left)*canvas.width/r.width,y:(t.clientY-r.top)*canvas.height/r.height};}
   function start(e){e.preventDefault();signDrawing=true;var p=getPos(e);signLastX=p.x;signLastY=p.y;}
@@ -5626,7 +5627,7 @@ function initSignCanvas(){
   canvas.addEventListener('mousedown',start);canvas.addEventListener('mousemove',draw);canvas.addEventListener('mouseup',end);
   canvas.addEventListener('touchstart',start,{passive:false});canvas.addEventListener('touchmove',draw,{passive:false});canvas.addEventListener('touchend',end);
 }
-function clearCanvas(){if(signCtx)signCtx.clearRect(0,0,400,150);}
+function clearCanvas(){if(!signCtx)return;var cv=document.getElementById('signCanvas');signCtx.fillStyle='#fff';signCtx.fillRect(0,0,cv?cv.width:400,cv?cv.height:150);}
 function submitSignature(btn){
   var contractType=btn.dataset.type||'business';
   var templateId=btn.dataset.tid;
@@ -5830,7 +5831,10 @@ function initRuleCanvas(){
   var canvas=document.getElementById('raSignCanvas');
   if(!canvas)return;
   _ruleCanvasCtx=canvas.getContext('2d');
-  _ruleCanvasCtx.strokeStyle='#c9a227';
+  // 白背景で塗りつぶし（署名を黒インクで見やすく）
+  _ruleCanvasCtx.fillStyle='#fff';
+  _ruleCanvasCtx.fillRect(0,0,canvas.width,canvas.height);
+  _ruleCanvasCtx.strokeStyle='#1a1a2e';
   _ruleCanvasCtx.lineWidth=2.5;
   _ruleCanvasCtx.lineCap='round';
   function pos(e){var r=canvas.getBoundingClientRect();var t=e.touches?e.touches[0]:e;return{x:(t.clientX-r.left)*canvas.width/r.width,y:(t.clientY-r.top)*canvas.height/r.height};}
@@ -5843,7 +5847,10 @@ function initRuleCanvas(){
 }
 
 function clearRuleCanvas(){
-  if(_ruleCanvasCtx)_ruleCanvasCtx.clearRect(0,0,640,160);
+  if(!_ruleCanvasCtx)return;
+  var canvas=document.getElementById('raSignCanvas');
+  _ruleCanvasCtx.fillStyle='#fff';
+  _ruleCanvasCtx.fillRect(0,0,canvas?canvas.width:640,canvas?canvas.height:160);
 }
 
 async function submitRuleAgreement(){
