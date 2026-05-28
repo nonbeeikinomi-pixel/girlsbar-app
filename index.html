@@ -321,7 +321,6 @@ td{padding:9px;border-bottom:1px solid var(--border);white-space:nowrap}
   <div class="tabs hidden" id="adminTabs">
     <div class="tab on" onclick="goTab(this,'pgAdminTop')">📊 概要</div>
     <div class="tab" onclick="goTab(this,'pgSales')">🎯 営業</div>
-    <div class="tab" onclick="goTab(this,'pgAdminGraph')">📈 グラフ</div>
     <div class="tab" onclick="goTab(this,'pgAdminCast')">💃 キャスト別</div>
     <div class="tab" onclick="goTab(this,'pgAdminDay')">📅 日別</div>
     <div class="tab" onclick="goTab(this,'pgAdminPay')">💴 明細</div>
@@ -1493,7 +1492,6 @@ function loadHome(){
   const menus=isAdmin?[
     {icon:'📊',name:'売上管理',desc:'日次・月次の売上を確認',page:'pgAdminTop',accent:true},
     {icon:'🎯',name:'営業支援',desc:'顧客・来店・タスク管理',page:'pgSales'},
-    {icon:'📈',name:'グラフ',desc:'売上トレンドを可視化',page:'pgAdminGraph'},
     {icon:'💃',name:'キャスト管理',desc:'スタッフ別成績・分析',page:'pgAdminCast'},
     {icon:'📅',name:'日別レポート',desc:'日別売上・客数を確認',page:'pgAdminDay'},
     {icon:'💴',name:'給与明細',desc:'キャスト別給与計算',page:'pgAdminPay'},
