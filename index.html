@@ -258,11 +258,31 @@ td{padding:9px;border-bottom:1px solid var(--border);white-space:nowrap}
 <div id="loginScreen" class="login">
   <div class="loginbox">
     <div class="loginlogo">✦ Girls Bar<small>売上管理システム</small></div>
-    <div class="card">
+
+    <!-- ログインフォーム -->
+    <div id="loginPanel" class="card">
       <div class="fg"><label class="label">メールアドレス</label><input id="loginEmail" class="inp" type="email" placeholder="メールアドレス" autocomplete="email"></div>
       <div class="fg"><label class="label">パスワード</label><input id="loginPw" class="inp" type="password" placeholder="パスワード" autocomplete="current-password"></div>
       <button class="btn primary full" onclick="doLogin()">ログイン</button>
       <p id="loginErr" class="err"></p>
+      <div style="text-align:center;margin-top:12px;">
+        <span style="font-size:12px;color:var(--muted);">アカウントをお持ちでない方は</span>
+        <button class="btn outline small" style="margin-left:6px;" onclick="showRegister()">新規登録</button>
+      </div>
+    </div>
+
+    <!-- 新規登録フォーム -->
+    <div id="registerPanel" class="card hidden">
+      <div style="font-size:15px;font-weight:800;color:var(--pink);margin-bottom:14px;">🆕 新規キャスト登録</div>
+      <div class="fg"><label class="label">キャスト名（表示名）</label><input id="regName" class="inp" type="text" placeholder="例：みく" autocomplete="name"></div>
+      <div class="fg"><label class="label">メールアドレス</label><input id="regEmail" class="inp" type="email" placeholder="例：miku@example.com" autocomplete="email"></div>
+      <div class="fg"><label class="label">パスワード</label><input id="regPw" class="inp" type="password" placeholder="6文字以上" autocomplete="new-password"></div>
+      <div class="fg"><label class="label">パスワード（確認）</label><input id="regPw2" class="inp" type="password" placeholder="もう一度入力" autocomplete="new-password"></div>
+      <button class="btn primary full" onclick="doRegister()">登録する</button>
+      <p id="registerErr" class="err"></p>
+      <div style="text-align:center;margin-top:12px;">
+        <button class="btn outline small" onclick="showLogin()">← ログインに戻る</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1416,6 +1436,51 @@ async function afterLogin(){
   loadHome();
 }
 function doLogout(){location.reload();}
+function showRegister(){hide('loginPanel');show('registerPanel');document.getElementById('registerErr').textContent='';document.getElementById('regName').focus();}
+function showLogin(){hide('registerPanel');show('loginPanel');document.getElementById('loginErr').textContent='';}
+async function doRegister(){
+  const name=document.getElementById('regName').value.trim();
+  const email=document.getElementById('regEmail').value.trim();
+  const pw=document.getElementById('regPw').value;
+  const pw2=document.getElementById('regPw2').value;
+  const errEl=document.getElementById('registerErr');
+  errEl.textContent='';
+  if(!name){errEl.textContent='キャスト名を入力してください';return;}
+  if(!email){errEl.textContent='メールアドレスを入力してください';return;}
+  if(pw.length<6){errEl.textContent='パスワードは6文字以上で設定してください';return;}
+  if(pw!==pw2){errEl.textContent='パスワードが一致しません';return;}
+  // 重複チェック（Supabaseから取得）
+  const{data:existing}=await SB.get('casts',{filters:[['email','eq',email]]});
+  if(existing&&existing.length>0){errEl.textContent='このメールアドレスはすでに登録されています';return;}
+  const ds=Math.round(drinkPrices.s*30/100);
+  const dm=Math.round(drinkPrices.m*30/100);
+  const dl=Math.round(drinkPrices.l*30/100);
+  const dshot=Math.round(drinkPrices.shot*33.33/100);
+  const newCast={id:'c'+Date.now(),name,email,role:'cast',is_active:true,
+    member_type:'semi',
+    hourly_wage_before_20:0,hourly_wage_before_22:0,hourly_wage_after_22:0,
+    back_rate:0,
+    drink_back_s:ds,drink_back_m:dm,drink_back_l:dl,shot_back:dshot,
+    drink_back_s_rate:30,drink_back_m_rate:30,drink_back_l_rate:30,shot_back_rate:33.33,
+    dohan_back_per:0,password_hash:pw};
+  if(isDemo()){
+    demoCasts.push(newCast);
+    toast('✅ 登録が完了しました。ログインしてください');
+    showLogin();
+    document.getElementById('loginEmail').value=email;
+    return;
+  }
+  const result=await SB.post('casts',newCast);
+  if(result&&result.error){
+    const err=result.error;
+    errEl.textContent='登録に失敗しました: '+(err.message||JSON.stringify(err));
+    return;
+  }
+  toast('✅ 登録が完了しました。ログインしてください');
+  showLogin();
+  document.getElementById('loginEmail').value=email;
+  document.getElementById('loginPw').value='';
+}
 
 function loadHome(){
   hide('castTabs');hide('adminTabs');
