@@ -1469,7 +1469,7 @@ async function doRegister(){
     document.getElementById('loginEmail').value=email;
     return;
   }
-  const result=await SB.post('casts',newCast);
+  const result=await sbSaveCast(newCast);
   if(result&&result.error){
     const err=result.error;
     errEl.textContent='登録に失敗しました: '+(err.message||JSON.stringify(err));
