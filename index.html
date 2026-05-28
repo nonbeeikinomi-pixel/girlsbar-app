@@ -4227,15 +4227,7 @@ function renderSmSubmitStatus(m){
     activeCasts.forEach(c=>{
       const key=`${c.id}_${m}_${p}`;
       const req=shiftRequests[key];
-      if(!req){
-        html+=`<div class="shift-card" style="opacity:.7;">
-          <div style="display:flex;justify-content:space-between;align-items:center;">
-            <span style="font-weight:800;">${c.name}</span>
-            <span class="shift-badge ${passed?'sb-red':'sb-gray'}">${passed?'⛔ 期限切れ未提出':'📭 未提出'}</span>
-          </div>
-        </div>`;
-        return;
-      }
+      if(!req) return;
       const dt=new Date(req.updatedAt||req.createdAt);
       html+=`<div class="shift-card">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px;">
