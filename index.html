@@ -619,8 +619,13 @@ td{padding:9px;border-bottom:1px solid var(--border);white-space:nowrap}
 
     <!-- 提出状況 -->
     <div class="card">
-      <div class="title">📊 提出状況</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <div class="title" style="margin-bottom:0;">📊 提出状況</div>
+        <button class="btn outline small" onclick="loadShiftMgmt()">🔄 更新</button>
+      </div>
       <div id="smSubmitStatus"></div>
+      <!-- 次回提出予定 -->
+      <div id="smNextDeadlines"></div>
     </div>
 
     <!-- 必要人数設定 -->
@@ -4249,6 +4254,78 @@ function renderSmSubmitStatus(m){
       </div>`;
     });
   });
+  el.innerHTML=html;
+  renderSmNextDeadlines(m);
+}
+
+// ── 次回提出予定（2回先まで）──
+function getNext2Deadlines(){
+  const now=new Date();
+  const upcoming=[];
+  let yr=now.getFullYear();
+  let mo=now.getMonth()+1;
+  // 最大12ヶ月分チェック
+  for(let i=0;i<12&&upcoming.length<2;i++){
+    for(let p=1;p<=2;p++){
+      const mStr=yr+'-'+String(mo).padStart(2,'0');
+      const dl=getDeadline(mStr,p);
+      if(dl>now){
+        const[y2,m2]=mStr.split('-').map(Number);
+        const label=m2+'月'+(p===1?'前半（1〜15日）':'後半（16日〜末日）');
+        const submitFrom=p===1?
+          new Date(m2===1?y2-1:y2, m2===2?0:m2-2, 1):// 前半は前月から
+          new Date(y2,m2-1,11);// 後半は11日から
+        upcoming.push({mStr,p,deadline:dl,label,
+          rangeLabel:p===1?m2+'月1日〜15日':m2+'月16日〜月末'});
+        if(upcoming.length>=2)break;
+      }
+    }
+    mo++;if(mo>12){mo=1;yr++;}
+  }
+  return upcoming;
+}
+
+function renderSmNextDeadlines(currentM){
+  const el=document.getElementById('smNextDeadlines');
+  if(!el)return;
+  // 当月の全提出が完了しているか確認
+  const activeCasts=demoCasts.filter(c=>c.is_active&&c.role!=='admin');
+  const allDone=[1,2].every(p=>
+    activeCasts.length>0&&activeCasts.every(c=>shiftRequests[`${c.id}_${currentM}_${p}`])
+  );
+  const next2=getNext2Deadlines();
+  if(!next2.length){el.innerHTML='';return;}
+
+  const fmtDate=d=>d.toLocaleDateString('ja-JP',{month:'long',day:'numeric',weekday:'short'});
+  const now=new Date();
+
+  let html=`<div style="margin-top:16px;border-top:1px solid var(--border);padding-top:14px;">`;
+  html+=`<div style="font-size:13px;font-weight:800;color:var(--muted);margin-bottom:10px;">
+    📅 次回以降の提出予定
+    ${allDone?'<span style="background:#eaf3de;color:#31640d;font-size:11px;border-radius:99px;padding:2px 8px;margin-left:6px;">当月全員提出済み ✅</span>':''}
+  </div>`;
+
+  next2.forEach((d,i)=>{
+    const diffMs=d.deadline-now;
+    const diffDays=Math.ceil(diffMs/86400000);
+    const urgency=diffDays<=3?'#fcebeb;border:1px solid #df4a49':diffDays<=7?'#fdf3dc;border:1px solid #f59e0b':'#f0f4f8;border:1px solid #e2e8f0';
+    const urgencyTxt=diffDays<=3?`<span style="color:#a32d2d;font-weight:800;">⚠️ あと${diffDays}日</span>`:
+      diffDays<=7?`<span style="color:#7a4a0b;font-weight:800;">あと${diffDays}日</span>`:
+      `<span style="color:var(--muted);">あと${diffDays}日</span>`;
+    html+=`<div style="background:${urgency};border-radius:12px;padding:12px 14px;margin-bottom:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+        <div>
+          <div style="font-size:13px;font-weight:800;color:#1e293b;">${i===0?'🔜':'⏭️'} ${d.label}</div>
+          <div style="font-size:11px;color:#64748b;margin-top:2px;">対象期間：${d.rangeLabel}</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:12px;font-weight:800;color:#1e293b;">締切：${fmtDate(d.deadline)}</div>
+          <div style="font-size:11px;margin-top:2px;">${urgencyTxt}</div>
+        </div>
+      </div>
+    </div>`;
+  });
+  html+='</div>';
   el.innerHTML=html;
 }
 
